@@ -1,0 +1,82 @@
+from cmu_112_graphics import *
+import random, math, copy
+
+class Player(object):
+     def __init__(self, row, col):
+        self.row = row
+        self.col = col
+        self.facing = (1, 0)
+
+
+###############################################################################
+###############################################################################
+# ________                          .__            ____   
+# \______ \ _______ _____  __  _  __|__|  ____    / ___\  
+#  |    |  \\_  __ \\__  \ \ \/ \/ /|  | /    \  / /_/  > 
+#  |    `   \|  | \/ / __ \_\     / |  ||   |  \ \___  /  
+# /_______  /|__|   (____  / \/\_/  |__||___|  //_____/   
+#         \/             \/                  \/           
+###############################################################################
+###############################################################################
+                                                        
+
+def appStarted(app):
+    app.tileSize = app.width // 11
+    app.rows = 60
+    app.cols = 60
+    app.shownRows = app.width // app.tileSize
+    app.shownCols = app.width // app.tileSize
+    app.grid = make2dList(app.rows, app.cols)
+    createGridFills(app)
+    app.player = Player(app.rows//2, app.cols//2)
+
+def createGridFills(app):
+    for row in range(len(app.grid)):
+        for col in range(len(app.grid[0])):
+            app.grid[row][col] = "grey" + str(row % 3 * 10 + col % 3 * 10)
+
+def make2dList(rows, cols):
+    return [ ([0] * cols) for row in range(rows) ]
+
+def keyPressed(app, event):
+    dMove = (0, 0)
+    if event.key == "Up" and app.player.row > app.shownRows:
+        dMove = (-1, 0)
+    elif event.key == "Down" and app.player.row < app.rows - 1:
+        dMove = (1, 0)
+    elif event.key == "Right" and app.player.col < app.cols - 1:
+        dMove = (0, 1)
+    elif event.key == "Left" and app.player.col > app.shownRows:
+        dMove = (0, -1)
+    app.player.row += dMove[0]
+    app.player.col += dMove[1]
+
+def redrawAll(app, canvas):
+    drawGrid(app, canvas)
+    drawPlayer(app, canvas)
+
+def drawGrid(app, canvas):
+    for row in range(app.shownRows):
+        for col in range(app.shownCols):
+            colorRow = app.player.row - row
+            colorCol = app.player.col - col
+            canvas.create_rectangle(col*app.tileSize, row*app.tileSize,
+                                    (col+1)*app.tileSize, (row+1)*app.tileSize,
+                                    width=2, outline="white",  
+                                    fill=app.grid[colorRow][colorCol])
+            text = "(" + str(colorRow) + ", " + str(colorCol) + ")"
+            canvas.create_text((col+0.5)*app.tileSize, (row+0.5)*app.tileSize,
+                                text=text)
+                    
+def drawPlayer(app, canvas):
+    r = app.tileSize/2 * 0.9
+    x = app.width/2
+    y = app.height/2
+    canvas.create_oval(x-r, y-r, x+r, y+r, fill="black")
+
+def main():
+    runApp(width=693, height=693)
+
+if __name__ == '__main__':
+    main()
+

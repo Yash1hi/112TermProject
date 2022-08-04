@@ -1,0 +1,142 @@
+from cmu_112_graphics import *
+import random, math
+
+def appStarted(app):
+    app.noiseScale = 0.2
+    app.tileSize = 4
+    app.rows = app.height//app.tileSize+1
+    app.cols = app.width//app.tileSize+1
+    app.grid = make2dList(app.rows, app.cols)
+    app.scale = app.width // 12
+    app.gradientDict = genGradients(app)
+    app.max = 0
+    createGridFills(app)
+
+# def mousePressed(app, event):
+#     createGridFills(app)
+
+def keyPressed(app, event):
+    if event.key == "Up" and app.tileSize < 256:
+        app.tileSize += 1
+    elif event.key == "Down" and app.tileSize > 0:
+        app.tileSize -= 1
+    elif event.key == "r":
+        createGridFills(app)
+
+
+def rgbString(r, g, b):
+    return f'#{r:02x}{g:02x}{b:02x}'
+
+def genGradients(app):
+    vectors = dict()
+    root2div2 = (2**0.5)/2
+    poss = [(0, 1), (0, -1), (1, 0), (-1, 0), 
+            (root2div2, root2div2), (root2div2, -1*root2div2), 
+            (-1*root2div2, root2div2), (-1*root2div2, -1*root2div2)]
+    # poss = [(root2div2, root2div2), (root2div2, -1*root2div2), 
+    #         (-1*root2div2, root2div2), (-1*root2div2, -1*root2div2)]
+    for row in range((app.height // app.scale) + 1):
+        for col in range((app.height // app.scale) + 1):
+            v = poss[random.randint(0, len(poss)-1)]
+            # vf = (v[0] + row * app.scale, v[1] + row * app.scale)
+            # v = genPoss()
+            vectors[(row * app.scale, col * app.scale)] = v
+    return vectors
+
+# def genPoss():
+#     x = random.random()
+#     y = (1 - (x)**2)**0.5
+#     return (x, y)
+
+def perlin(app, x, y):
+    if x == app.width or y == app.height:
+        return 255
+    calcPoints = getClosestPoints(app, x, y)
+    gradientVectors = getGradientVectors(app, calcPoints)
+    directionVectors = getDirectionVectors(app, calcPoints, x, y)
+    dotProducts = getDotProducts(gradientVectors, directionVectors)
+    value = linearInterpolate(app, dotProducts, x, y)
+    if int(128*(value)+128) > app.max:
+        app.max = int(128*(value)+128)
+        print(app.max)
+    return int(128*(value)+128)
+
+def getClosestPoints(app, x, y):
+    x0 = (x // app.scale) * app.scale
+    x1 = (x // app.scale + 1) * app.scale
+    y0 = (y // app.scale) * app.scale
+    y1 = (y // app.scale + 1) * app.scale
+    return [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+
+def getGradientVectors(app, points):
+    result = []
+    for point in points:
+        result.append(app.gradientDict[point])
+    return result
+
+def getDirectionVectors(app, points, x, y):
+    result = []
+    for point in points:
+        vector = ((x - point[0]) / app.scale, (y - point[1]) / app.scale)
+        result.append(vector)
+    return result
+
+def getDotProducts(gradients, directions):
+    result = []
+    
+    for index in range(len(gradients)):
+        product = (gradients[index][0] * directions[index][0] + 
+                   gradients[index][1] * directions[index][1])
+        result.append(product)
+    return result
+
+def linearInterpolate(app, pointDots, x, y):
+    u = doFade(x % app.scale / app.scale)
+    v = doFade(y % app.scale / app.scale)
+    top = ((1 - u) * pointDots[0] + u * pointDots[1])
+    bot = ((1 - u) * pointDots[2] + u * pointDots[3])
+    final = ((1 - v) * top + v * bot)
+    return final
+
+def doFade(x):
+    faded = (6 * (x**5) - 15 * (x**4) + 10 * (x**3))
+    return faded
+
+
+def make2dList(rows, cols):
+    return [ ([0] * cols) for row in range(rows) ]
+
+def createGridFills(app):
+    app.gradientDict = genGradients(app)
+    for row in range(app.rows):
+        for col in range(app.cols):
+            noise = perlin(app, row, col)
+            if noise < 50:
+                app.grid[row][col] = rgbString(0, 0, 0)
+            elif noise < 100:
+                app.grid[row][col] = rgbString(50, 0, 0)
+            elif noise < 150:
+                app.grid[row][col] = rgbString(100, 0, 0)
+            elif noise < 200:
+                app.grid[row][col] = rgbString(150, 0, 0)
+            elif noise < 256:
+                app.grid[row][col] = rgbString(200, 0, 0)
+
+
+            # app.grid[row][col] = rgbString(noise, noise, noise)
+
+def drawGrid(app, canvas):
+    for row in range(app.rows):
+        for col in range(app.cols):
+            canvas.create_rectangle(col*app.tileSize, row*app.tileSize,
+                                    (col+1)*app.tileSize, (row+1)*app.tileSize,
+                                    width=0, fill=app.grid[row][col])
+def redrawAll(app, canvas):
+    drawGrid(app, canvas)
+
+def main():
+    runApp(width=560, height=560)
+
+if __name__ == '__main__':
+    main()
+

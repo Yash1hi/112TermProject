@@ -1,0 +1,49 @@
+import csv
+
+def makeListFromString(s):
+    isWord = False
+    result = []
+    currentWord = ""
+    for c in s:
+        if isWord:
+            currentWord += c
+
+        if c == "," and isWord:
+            result.append(currentWord[2:-2])
+            currentWord = ""
+            isWord = not isWord
+        elif c == ",":
+            isWord = not isWord
+    return result
+
+pokemonList = dict()
+with open("pokemon-data.csv", "r") as file:
+    csvreader = csv.reader(file, delimiter=";")
+    for pokemon in csvreader:
+        pokemonList[pokemon[0]] = {
+            "Type": pokemon[1],
+            "Abilities": makeListFromString(pokemon[2]),
+            "HP": pokemon[4],
+            "Attack": pokemon[5],
+            "Defense": pokemon[6],
+            "Special Attack": pokemon[7],
+            "Special Defense": pokemon[8],
+            "Speed": pokemon[9],
+            "Evolution": pokemon[10],
+            "Move Set": makeListFromString(pokemon[11])
+        }
+
+moveList = dict()
+with open("move-data.csv", "r") as file:
+    csvreader = csv.reader(file, delimiter=",")
+    for move in csvreader:
+        moveList[move[1]] = {
+            "Type": move[2],
+            "Category": move[3],
+            "PP": move[5],
+            "Power": move[6],
+            "Accuracy": move[7]
+        }
+
+index = 32
+print(pokemonList["Aron"]["Move Set"][index], moveList[pokemonList["Aron"]["Move Set"][index]])
