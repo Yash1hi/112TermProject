@@ -3,11 +3,11 @@ import random, math
 
 def appStarted(app):
     app.noiseScale = 0.2
-    app.tileSize = 4
+    app.tileSize = 1
     app.rows = app.height//app.tileSize+1
     app.cols = app.width//app.tileSize+1
     app.grid = make2dList(app.rows, app.cols)
-    app.scale = app.width // 12
+    app.scale = app.width // 4
     app.gradientDict = genGradients(app)
     app.max = 0
     createGridFills(app)
@@ -111,19 +111,19 @@ def createGridFills(app):
     for row in range(app.rows):
         for col in range(app.cols):
             noise = perlin(app, row, col)
-            if noise < 50:
-                app.grid[row][col] = rgbString(0, 0, 0)
-            elif noise < 100:
-                app.grid[row][col] = rgbString(50, 0, 0)
-            elif noise < 150:
-                app.grid[row][col] = rgbString(100, 0, 0)
-            elif noise < 200:
-                app.grid[row][col] = rgbString(150, 0, 0)
-            elif noise < 256:
-                app.grid[row][col] = rgbString(200, 0, 0)
+            # if noise < 50:
+            #     app.grid[row][col] = rgbString(0, 0, 0)
+            # elif noise < 100:
+            #     app.grid[row][col] = rgbString(50, 0, 0)
+            # elif noise < 150:
+            #     app.grid[row][col] = rgbString(100, 0, 0)
+            # elif noise < 200:
+            #     app.grid[row][col] = rgbString(150, 0, 0)
+            # elif noise < 256:
+            #     app.grid[row][col] = rgbString(200, 0, 0)
 
 
-            # app.grid[row][col] = rgbString(noise, noise, noise)
+            app.grid[row][col] = rgbString(noise, noise, noise)
 
 def drawGrid(app, canvas):
     for row in range(app.rows):

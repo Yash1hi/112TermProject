@@ -1,11 +1,23 @@
 from cmu_112_graphics import *
 import random, math, copy
 
+# Player Object
 class Player(object):
-     def __init__(self, row, col):
+     def __init__(self, row, col, image):
         self.row = row
         self.col = col
-        self.facing = (1, 0)
+        self.facing = 0 # 0: Up, 1: Left, 2: Right, 3: Down
+        # Split sprite sheet into 2d array of all sprite images
+        self.sprites = make2dList(4, 4)
+        for row in range(4):
+            for col in range(4):
+                sprite = image.crop((64*col, 64*row, 64*(col+1), 64*(row+1)))
+                self.sprites[row][col] = sprite
+
+# Helper that makes a 2d list of row x col
+def make2dList(rows, cols):
+    return [ ([0] * cols) for row in range(rows) ]       
+
 
 
 ###############################################################################
@@ -19,61 +31,168 @@ class Player(object):
 ###############################################################################
 ###############################################################################
                                                         
-
+# Initialize all variables
 def appStarted(app):
-    app.tileSize = app.width // 11
+    # Board properties
+    app.shownRows = 11
+    app.shownCols = 11
+    app.tileSize = app.width // app.shownRows
     app.rows = 60
     app.cols = 60
-    app.shownRows = app.width // app.tileSize
-    app.shownCols = app.width // app.tileSize
+    app.encounterChance = 15
+    # Player Properties
+    playerImage = app.loadImage('./TrainerSprites/trchar153.png')
+    app.player = Player(app.rows//2, app.cols//2, playerImage)
+    # Create Board fills
     app.grid = make2dList(app.rows, app.cols)
     createGridFills(app)
-    app.player = Player(app.rows//2, app.cols//2)
+    # Images
+    size = 32
+    app.g, app.w, app.r = createImages(app, size)
 
+def createImages(app, s):
+    images = []
+    for c, r in [(3, 2), (0, 3)]:
+        orig = app.loadImage('TileSheet3.png').crop((s*c, s*r, s*(c+1), s*(r+1)))
+        scale = (app.tileSize/orig.size[0])
+        images.append(app.scaleImage(orig, scale))
+
+    c, r = 7, 146
+    orig = app.loadImage('TileSheet1.png').crop((s*c, s*r, s*(c+1), s*(r+1)))
+    scale = (app.tileSize/orig.size[0])
+    images.append(app.scaleImage(orig, scale))
+    return images
+
+# Initialize the fill of grid 
 def createGridFills(app):
     for row in range(len(app.grid)):
         for col in range(len(app.grid[0])):
-            app.grid[row][col] = "grey" + str(row % 3 * 10 + col % 3 * 10)
-
-def make2dList(rows, cols):
-    return [ ([0] * cols) for row in range(rows) ]
+            value = random.randint(0, 2)
+            app.grid[row][col] = value
+    for row in range(-3, 4):
+        for col in range(-3, 4):
+            app.grid[app.player.row+row][app.player.col+col] = 0
+    # app.grid = [
+    #     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    #     [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    #     [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    #     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    #     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    #     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    #     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    #     [0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+    #     [0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+    #     [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 2, 2, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+    #     [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 2, 2, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+    #     [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 2, 2, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0],
+    #     [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    #     [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    #     [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    #     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    #     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    #     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    #     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    #     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    # ]
 
 def keyPressed(app, event):
+    # Initial move is 0, 0
     dMove = (0, 0)
-    if event.key == "Up" and app.player.row > app.shownRows:
-        dMove = (-1, 0)
-    elif event.key == "Down" and app.player.row < app.rows - 1:
-        dMove = (1, 0)
-    elif event.key == "Right" and app.player.col < app.cols - 1:
-        dMove = (0, 1)
-    elif event.key == "Left" and app.player.col > app.shownRows:
-        dMove = (0, -1)
+    # Max rows/cols
+    borderTop = app.shownRows//2
+    borderBot = app.rows - app.shownRows//2 - 1
+    borderLeft = app.shownCols//2
+    borderRight = app.cols - app.shownCols//2 - 1
+    
+    # If player is facing in move direction, move in that direction, 
+    # change facing either way
+    if event.key == "Up":
+        if app.player.facing == 3:
+            dMove = (-1, 0)
+        app.player.facing = 3
+    elif event.key == "Down":
+        if app.player.facing == 0:
+            dMove = (1, 0)
+        app.player.facing = 0
+    elif event.key == "Right":
+        if app.player.facing == 2:
+            dMove = (0, 1)
+        app.player.facing = 2
+    elif event.key == "Left":
+        if app.player.facing == 1:
+            dMove = (0, -1)
+        app.player.facing = 1
+
+    # Test to see if collision with rock or border
     app.player.row += dMove[0]
     app.player.col += dMove[1]
+    if (app.grid[app.player.row][app.player.col] == 2 or 
+       app.player.row < borderTop or app.player.row > borderBot or
+       app.player.col > borderRight or app.player.col < borderLeft):
+        app.player.row -= dMove[0]
+        app.player.col -= dMove[1]
+    # Have a chance to start an encounter if player moves into grass
+    if (app.grid[app.player.row][app.player.col] == 1):
+        chance = random.randint(1, 100)
+        if chance <= app.encounterChance:
+            print("Start Encounter")
 
+# Draw all elements
 def redrawAll(app, canvas):
     drawGrid(app, canvas)
     drawPlayer(app, canvas)
+    drawElementOver(app, canvas)
 
+# Draws all tiles on the board through a 2d list
+# By default all of these are drawn behind the player
 def drawGrid(app, canvas):
+    # Loop through all rows and cols
     for row in range(app.shownRows):
         for col in range(app.shownCols):
-            colorRow = app.player.row - row
-            colorCol = app.player.col - col
-            canvas.create_rectangle(col*app.tileSize, row*app.tileSize,
-                                    (col+1)*app.tileSize, (row+1)*app.tileSize,
-                                    width=2, outline="white",  
-                                    fill=app.grid[colorRow][colorCol])
-            text = "(" + str(colorRow) + ", " + str(colorCol) + ")"
-            canvas.create_text((col+0.5)*app.tileSize, (row+0.5)*app.tileSize,
-                                text=text)
-                    
+            # This is the row/col that should be indexed. 
+            # Always relative to player, with player in center
+            colorRow = app.player.row - (app.shownRows//2) + row
+            colorCol = app.player.col - (app.shownCols//2) + col
+
+            cx = (col+0.5)*app.tileSize
+            cy = (row+0.5)*app.tileSize
+            
+            # All background tiles are light green images
+            canvas.create_image(cx, cy, image=ImageTk.PhotoImage(app.w))
+            # Create grass if grid is 1, and player is not on tile If player is 
+            # on tile, draw grass over the player instead in drawTileElements
+            if (app.grid[colorRow][colorCol] == 1 and not 
+                 (app.player.row == colorRow and app.player.col == colorCol)):
+                    canvas.create_image(cx, cy, image=ImageTk.PhotoImage(app.g))
+            # Draw rock if value is 2
+            elif app.grid[colorRow][colorCol] == 2:
+                canvas.create_image(cx, cy, image=ImageTk.PhotoImage(app.r))
+            
+            # Debug code that will display the row,col values on each tile
+                # text = "(" + str(colorRow) + ", " + str(colorCol) + ")"            
+                # canvas.create_text((col+0.5)*app.tileSize, (row+0.5)*app.tileSize,
+                #                     text=text)
+
+# Draws the player using values from the Player class          
 def drawPlayer(app, canvas):
-    r = app.tileSize/2 * 0.9
+    # Set properties of image, making it larger than 1 tile
+    image = app.player.sprites[app.player.facing][0]
+    scale = (app.tileSize/image.size[0])*1.6
+    image = app.scaleImage(image, scale)
+    # Always place char in the center of screen
     x = app.width/2
     y = app.height/2
-    canvas.create_oval(x-r, y-r, x+r, y+r, fill="black")
+    canvas.create_image(x, y-15, image=ImageTk.PhotoImage(image))
 
+# Draw element over the character if char is on the tile
+def drawElementOver(app, canvas):
+    col = app.shownRows // 2  
+    row = app.shownRows // 2 
+    if app.grid[app.player.row][app.player.col] == 1:
+        canvas.create_image((col+0.5)*app.tileSize, (row+0.5)*app.tileSize, 
+                             image=ImageTk.PhotoImage(app.g))
+
+# Main draw element
 def main():
     runApp(width=693, height=693)
 
