@@ -1,0 +1,534 @@
+from cmu_112_graphics import *
+import random, copy, csv
+
+                                                                  
+# Helper that makes a 2d list of row x col
+def make2dList(rows, cols, fill=0):
+    return [ ([fill] * cols) for row in range(rows) ] 
+
+def almostEqual(d1, d2, epsilon=10**-7): #helper-fn
+    # note: use math.isclose() outside 15-112 with Python version 3.5 or later
+    return (abs(d2 - d1) < epsilon)
+
+import decimal
+def roundHalfUp(d): #helper-fn
+    # Round to nearest with ties going away from zero.
+    rounding = decimal.ROUND_HALF_UP
+    # See other rounding options here:
+    # https://docs.python.org/3/library/decimal.html#rounding-modes
+    return int(decimal.Decimal(d).to_integral_value(rounding=rounding))
+
+def makeListFromString(s):
+    isWord = False
+    result = []
+    currentWord = ""
+    for c in s:
+        if isWord:
+            currentWord += c
+
+        if c == "," and isWord:
+            result.append(currentWord[2:-2])
+            currentWord = ""
+            isWord = not isWord
+        elif c == ",":
+            isWord = not isWord
+    return result
+
+def selectMoves(moveSet, i):
+    addedMoves = [""] * i
+    while i > 0:
+        move = moveSet[random.randint(0, len(moveSet)-1)]
+        temp = ""
+        for word in move.split("'"):
+            temp += word + "-"
+        temp = temp[:-1]
+        move = temp
+        if not (move in addedMoves) and moveList[move]["Power"] != "None":
+            addedMoves[i-1] = move
+            i -= 1
+    return addedMoves
+
+###############################################################################
+###############################################################################
+# _________    _____________   ____    __________
+# \_   ___ \  /   _____/\   \ /   /    \______   \_____  _______  ______  ____
+# /    \  \/  \_____  \  \   Y   /      |     ___/\__  \ \_  __ \/  ___/_/ __ \
+# \     \____ /        \  \     /       |    |     / __ \_|  | \/\___ \ \  ___/
+#  \______  //_______  /   \___/        |____|    (____  /|__|  /____  > \___  >
+#         \/         \/                                \/            \/      \/
+###############################################################################
+###############################################################################
+
+pokemonList = dict()
+with open("pokemon-data.csv", "r") as file:
+    csvreader = csv.reader(file, delimiter=";")
+    for pokemon in csvreader:
+        pokemonList[pokemon[0]] = {
+            "Type": pokemon[1],
+            "Abilities": makeListFromString(pokemon[2]),
+            "HP": (pokemon[4]),
+            "Attack": (pokemon[5]),
+            "Defense": (pokemon[6]),
+            "Special Attack": (pokemon[7]),
+            "Special Defense": (pokemon[8]),
+            "Speed": (pokemon[9]),
+            "Evolution": pokemon[10],
+            "Move Set": makeListFromString(pokemon[11])
+        }
+
+moveList = dict()
+with open("move-data.csv", "r") as file:
+    csvreader = csv.reader(file, delimiter=",")
+    for move in csvreader:
+        moveList[move[1]] = {
+            "Type": move[2],
+            "Category": move[3],
+            "PP": move[5],
+            "Power": move[6],
+            "Accuracy": move[7]
+        }
+
+###############################################################################
+###############################################################################
+# _________  .__                                            
+# \_   ___ \ |  |  _____     ______  ______  ____    ______ 
+# /    \  \/ |  |  \__  \   /  ___/ /  ___/_/ __ \  /  ___/ 
+# \     \____|  |__ / __ \_ \___ \  \___ \ \  ___/  \___ \  
+#  \______  /|____/(____  //____  >/____  > \___  >/____  > 
+#         \/            \/      \/      \/      \/      \/  
+###############################################################################
+###############################################################################                                                         
+
+# Player Object
+class Player(object):
+     def __init__(self, row, col, image):
+        self.row = row
+        self.col = col
+        self.facing = 0 # 0: Up, 1: Left, 2: Right, 3: Down
+        # Split sprite sheet into 2d array of all sprite images
+        self.sprites = make2dList(4, 4)
+        for row in range(4):
+            for col in range(4):
+                sprite = image.crop((64*col, 64*row, 64*(col+1), 64*(row+1)))
+                self.sprites[row][col] = sprite
+
+class Pokemon(object):
+    def __init__(self, level, name, stats):
+        self.name = name
+        self.type = stats["Type"]
+        self.lvl = level
+        # Get move set for this instance
+        moveSet = stats["Move Set"]
+        self.moves = selectMoves(moveSet, 4)
+        # Stats
+        self.baseHP , self.modHP = int(stats["HP"]), 2       
+        self.hp = roundHalfUp(self.baseHP + self.lvl * self.modHP)
+        self.baseATK, self.modATK = int(stats["Attack"]), 1.1 
+        self.attack = roundHalfUp(self.baseATK + self.lvl * self.modATK)
+        self.baseSPATK, self.modSPATK = int(stats["Special Attack"]), 1.1 
+        self.SPattack = roundHalfUp(self.baseSPATK + self.lvl * self.modSPATK)
+        self.baseDEF, self.modDEF = int(stats["Defense"]), 0.5 
+        self.defense = roundHalfUp(self.baseDEF + self.lvl * self.modDEF)
+        self.baseSPDEF, self.modSPDEF = int(stats["Special Defense"]), 0.5 
+        self.SPdefense = roundHalfUp(self.baseSPDEF + self.lvl * self.modSPDEF)
+        self.baseSPD, self.modSPD = int(stats["Speed"]), 1.1 
+        self.speed = roundHalfUp(self.baseSPD + self.lvl * self.modSPD)
+    
+    def getMaxHP(self):
+        return roundHalfUp(self.baseHP + self.lvl * self.modHP)
+
+    def incrHP(self, incr):
+        self.hp = int(roundHalfUp(self.hp + incr))
+
+    def decrHP(self, decr):
+        self.hp = int(roundHalfUp(self.hp - decr))
+    
+    def incrAttack(self, incr):
+        self.attack = int(roundHalfUp(self.attack + incr))
+
+    def decrAttack(self, decr):
+        self.attack = int(roundHalfUp(self.attack - decr))
+    
+    def incrDefense(self, incr):
+        self.defense = int(roundHalfUp(self.defense + incr))
+
+    def decrDefense(self, decr):
+        self.defense = int(roundHalfUp(self.defense - decr))
+    
+    def incrSpeed(self, incr):
+        self.speed = int(roundHalfUp(self.speed + incr))
+
+    def decrSpeed(self, decr):
+        self.speed = int(roundHalfUp(self.speed - decr))
+
+
+    def __repr__(self):
+        return(
+        f"\n{self.name}"
+        f"\nlevel={self.lvl}, type={self.type},"
+        f"\nmoves={self.moves}"
+        f"\nhp={self.hp}, atk={self.attack}, spatk={self.SPattack}, df="
+        f"{self.defense}, spdf={self.SPdefense}, sp={self.speed}"
+        f"\n")
+
+
+###############################################################################
+###############################################################################
+# ________                          .__            ____   
+# \______ \ _______ _____  __  _  __|__|  ____    / ___\  
+#  |    |  \\_  __ \\__  \ \ \/ \/ /|  | /    \  / /_/  > 
+#  |    `   \|  | \/ / __ \_\     / |  ||   |  \ \___  /  
+# /_______  /|__|   (____  / \/\_/  |__||___|  //_____/   
+#         \/             \/                  \/           
+###############################################################################
+###############################################################################
+
+# Initialize all variables
+def appStarted(app):
+    app.mode = "overworldMode"
+    if app.mode == "overworldMode":
+        startOverworld(app)
+    elif app.mode == "battleMode":
+        startBattle(app)
+
+def startOverworld(app):
+    # Board properties
+    app.shownRowsCols = 11
+    app.tileSize = app.width // app.shownRowsCols
+    app.rows = 60
+    app.cols = 60
+    app.encounterChance = 100
+    # Player Properties
+
+    playerImage = app.loadImage('./TrainerSprites/trchar142.png')
+    app.player = Player(app.rows//2, app.cols//2, playerImage)
+    # Create Board fills
+    app.grid = make2dList(app.rows, app.cols)
+    createGridFills(app)
+    # Images
+    size = 32
+    app.g, app.w, app.r = createImagesOverworld(app, size)
+
+def createImagesOverworld(app, s):
+    images = []
+    for c, r in [(3, 2), (0, 3)]:
+        orig = app.loadImage('./TileSprites/TileSheet3.png').crop((s*c, s*r, s*(c+1), s*(r+1)))
+        scale = (app.tileSize/orig.size[0])
+        images.append(app.scaleImage(orig, scale))
+    c, r = 7, 146
+    orig = app.loadImage('./TileSprites/TileSheet1.png').crop((s*c, s*r, s*(c+1), s*(r+1)))
+    scale = (app.tileSize/orig.size[0])
+    images.append(app.scaleImage(orig, scale))
+    return images
+
+# Initialize the fill of grid 
+def createGridFills(app):
+    for row in range(len(app.grid)):
+        for col in range(len(app.grid[0])):
+            value = random.randint(0, 2)
+            app.grid[row][col] = value
+    for row in range(-3, 4):
+        for col in range(-3, 4):
+            app.grid[app.player.row+row][app.player.col+col] = 0
+
+###############################################################################
+###############################################################################
+# ________                                               .__       .___ 
+# \_____  \ ___  __  ____ _______ __  _  __ ____ _______ |  |    __| _/ 
+#  /   |   \\  \/ /_/ __ \\_  __ \\ \/ \/ //  _ \\_  __ \|  |   / __ |  
+# /    |    \\   / \  ___/ |  | \/ \     /(  <_> )|  | \/|  |__/ /_/ |  
+# \_______  / \_/   \___  >|__|     \/\_/  \____/ |__|   |____/\____ |  
+#         \/            \/                                          \/  
+###############################################################################
+###############################################################################                                                             
+
+def overworldMode_keyPressed(app, event):
+    # Initial move is 0, 0
+    dMove = (0, 0)
+    # Max rows/cols
+    borderTop = app.shownRowsCols//2
+    borderBot = app.rows - app.shownRowsCols//2 - 1
+    borderLeft = app.shownRowsCols//2
+    borderRight = app.cols - app.shownRowsCols//2 - 1
+    
+    # If player is facing in move direction, move in that direction, 
+    # change facing either way
+    if event.key == "Up":
+        if app.player.facing == 3:
+            dMove = (-1, 0)
+        app.player.facing = 3
+    elif event.key == "Down":
+        if app.player.facing == 0:
+            dMove = (1, 0)
+        app.player.facing = 0
+    elif event.key == "Right":
+        if app.player.facing == 2:
+            dMove = (0, 1)
+        app.player.facing = 2
+    elif event.key == "Left":
+        if app.player.facing == 1:
+            dMove = (0, -1)
+        app.player.facing = 1
+    elif event.key == "r":
+        appStarted()
+
+    # Test to see if collision with rock or border
+    app.player.row += dMove[0]
+    app.player.col += dMove[1]
+    if (app.grid[app.player.row][app.player.col] == 2 or 
+       app.player.row < borderTop or app.player.row > borderBot or
+       app.player.col > borderRight or app.player.col < borderLeft):
+        app.player.row -= dMove[0]
+        app.player.col -= dMove[1]
+    # Have a chance to start an encounter if player moves into grass
+    elif (app.grid[app.player.row][app.player.col] == 1) and dMove != (0, 0):
+        chance = random.randint(1, 100)
+        if chance <= app.encounterChance:
+            app.mode = "battleMode"
+            startBattle(app)
+
+
+def overworldMode_redrawAll(app, canvas):
+    drawGrid(app, canvas)
+    drawPlayer(app, canvas)
+    drawElementOver(app, canvas)
+
+# Draws all tiles on the board through a 2d list
+# By default all of these are drawn behind the player
+def drawGrid(app, canvas):
+    # Loop through all rows and cols
+    for row in range(app.shownRowsCols):
+        for col in range(app.shownRowsCols):
+            # This is the row/col that should be indexed. 
+            # Always relative to player, with player in center
+            colorRow = app.player.row - (app.shownRowsCols//2) + row
+            colorCol = app.player.col - (app.shownRowsCols//2) + col
+
+            cx = (col+0.5)*app.tileSize
+            cy = (row+0.5)*app.tileSize
+            
+            # All background tiles are light green images
+            canvas.create_image(cx, cy, image=ImageTk.PhotoImage(app.w))
+            # Create grass if grid is 1, and player is not on tile If player is 
+            # on tile, draw grass over the player instead in drawTileElements
+            if (app.grid[colorRow][colorCol] == 1 and not 
+                 (app.player.row == colorRow and app.player.col == colorCol)):
+                    canvas.create_image(cx, cy, image=ImageTk.PhotoImage(app.g))
+            # Draw rock if value is 2
+            elif app.grid[colorRow][colorCol] == 2:
+                canvas.create_image(cx, cy, image=ImageTk.PhotoImage(app.r))
+            
+            # Debug code that will display the row,col values on each tile
+                # text = "(" + str(colorRow) + ", " + str(colorCol) + ")"            
+                # canvas.create_text((col+0.5)*app.tileSize, (row+0.5)*app.tileSize,
+                #                     text=text)
+
+# Draws the player using values from the Player class          
+def drawPlayer(app, canvas):
+    # Set properties of image, making it larger than 1 tile
+    image = app.player.sprites[app.player.facing][0]
+    scale = (app.tileSize/image.size[0])*1.6
+    image = app.scaleImage(image, scale)
+    # Always place char in the center of screen
+    x = app.width/2
+    y = app.height/2
+    r = app.tileSize/2 * 0.8
+    canvas.create_image(x, y-20, image=ImageTk.PhotoImage(image))
+    
+# Draw element over the character if char is on the tile
+def drawElementOver(app, canvas):
+    col = app.shownRowsCols // 2  
+    row = app.shownRowsCols // 2 
+    if app.grid[app.player.row][app.player.col] == 1:
+        canvas.create_image((col+0.5)*app.tileSize, (row+0.5)*app.tileSize, 
+                             image=ImageTk.PhotoImage(app.g))
+
+###############################################################################
+###############################################################################
+# __________          __     __   .__            
+# \______   \_____  _/  |_ _/  |_ |  |    ____   
+#  |    |  _/\__  \ \   __\\   __\|  |  _/ __ \  
+#  |    |   \ / __ \_|  |   |  |  |  |__\  ___/  
+#  |______  /(____  /|__|   |__|  |____/ \___  > 
+#         \/      \/                         \/  
+###############################################################################
+###############################################################################
+
+def startBattle(app):
+    app.bgImage = createImagesBattle(app)
+    pok1 = random.choice(list(pokemonList.keys()))
+    pok2 = random.choice(list(pokemonList.keys()))
+    app.pokClose = Pokemon(20, pok1, pokemonList[pok1])
+    app.pokFar = Pokemon(20, pok2, pokemonList[pok2])
+    app.infoH, app.infoW = 100, app.width/2
+    app.infoX = app.infoW
+    app.infoY = app.height*5/13
+    app.tickCount = 0
+    app.timerDelay = 50
+    app.pokCloseX = app.width/4
+    app.pokCloseY = app.bgImage.size[1]-75
+    app.textBoxSize = 100
+    app.newMessage = f"A wild {app.pokFar.name} appeared!"
+    app.battleText = ""
+    app.battleState = "Entering"
+    app.selection = make2dList(2, 2, "grey69")
+    app.selection[0][0] = "dark red"
+
+def createImagesBattle(app):
+    bg = app.loadImage('./TileSprites/BattleTiles.png').crop((6, 440, 256, 582))
+    scale = (app.width/bg.size[0])
+    return app.scaleImage(bg, scale)
+
+def battleMode_redrawAll(app, canvas):
+    drawBackground(app, canvas)
+    drawPokemon(app, canvas)
+    drawTextBox(app, canvas)
+    if app.battleState == "Choosing":
+        drawMoves(app, canvas)
+
+def drawBackground(app, canvas):
+    canvas.create_image(app.width/2, app.bgImage.size[1]/2, 
+                        image=ImageTk.PhotoImage(app.bgImage))
+
+def drawPokemon(app, canvas):
+    m = 2
+    canvas.create_rectangle(app.pokCloseX-90, app.pokCloseY-90, app.pokCloseX+90, 
+                            app.pokCloseY+90, fill="dark salmon", width=4, outline="black")
+    canvas.create_rectangle(app.infoX, app.infoY, app.infoX+app.infoW, 
+                            app.infoY+app.infoH, fill="grey85", width=m, 
+                            outline="white")
+    canvas.create_rectangle(app.infoX+m, app.infoY+m, app.infoX+app.infoW, 
+                            app.infoY+m+10, fill="grey30", outline="grey30") 
+    
+    canvas.create_rectangle(app.width*3/4+60, app.height/4+65, app.width*3/4-60, 
+                            app.height/4-55, fill="LemonChiffon4", width=4, outline="black")
+
+def drawTextBox(app, canvas):
+    m = 7
+    canvas.create_rectangle(0, app.bgImage.size[1], app.width, 
+                            app.bgImage.size[1]+app.textBoxSize,
+                            fill="grey90", width=m, outline="gold")
+    font = "ComicSansMS 20"
+    canvas.create_text(20, app.bgImage.size[1]+app.textBoxSize/2, anchor="w",
+                       text=app.battleText, font=font, fill="black")
+
+def drawMoves(app, canvas):
+    m = 10
+    yTop = app.bgImage.size[1] + app.textBoxSize
+    outBoxW = app.width/2
+    outBoxH = (app.height-yTop)/2
+    inBoxW = app.width/2 - 2*m
+    inBoxH = (app.height-yTop)/2 - 2*m
+    move = 0
+    for row in range(2):
+        for col in range(2):
+            canvas.create_rectangle(col*outBoxW, yTop+row*outBoxH, 
+                                    (col+1)*outBoxW, yTop+(row+1)*outBoxH, 
+                                    fill=app.selection[row][col], width=0)
+            x0 = (2*col+1)*m + col*inBoxW
+            y0 = yTop + (2*row+1)*m + row*inBoxH
+            x1 = (2*col+1)*m + (col+1)*inBoxW
+            y1 = yTop + (2*row+1)*m + (row+1)*inBoxH
+            canvas.create_rectangle(x0, y0, x1, y1, fill="white", width=0)
+            font = "Helvetica 26 bold"
+            canvas.create_text((x0+x1)/2, (y0+y1)/2, fill="black", font=font,
+                                text=app.pokClose.moves[move])
+            move += 1
+
+def battleMode_keyPressed(app, event):
+    if "appeared!" in app.battleText or "appeared!" in app.newMessage:
+        app.battleText = ""
+        app.newMessage = f"Go! {app.pokClose.name}!"
+    elif "Go!" in app.battleText or "Go!" in app.newMessage:
+        app.battleText = ""
+        app.newMessage = f"What will {app.pokClose.name} do?"
+        app.battleState = "Choosing"
+            
+
+def battleMode_timerFired(app):
+    if app.battleState == "Choosing":
+        if app.tickCount//5 % 2 == 0:
+            app.infoY -= 2
+            app.pokCloseY -= 2
+        else:
+            app.infoY += 2
+            app.pokCloseY += 2
+    if app.newMessage != "":
+        app.battleText += app.newMessage[0]
+        app.newMessage = app.newMessage[1:]
+    app.tickCount += 1    
+
+# def doDamage(power, attacker, defender, modATK, modDEF):
+#     dmg = int(power*attacker.attack*modATK/(1+modDEF*defender.defense))
+#     defender.decrHP(dmg)
+#     return dmg
+
+# def doAttack(move, attacker, defender, attacker0 = 0, defender0 = 0):
+#     modATK = 0.01
+#     modDEF = 0.01
+#     moveName = move
+#     move = moveList[move]
+#     # Deals 40 damage to defender
+#     if move["Power"] != "None":
+#         if move["Category"] == "Physical":
+#             power = int(move["Power"])
+#             dmg = int(power*attacker.attack*modATK/(1+modDEF*defender.defense))
+#             defender.decrHP(dmg)
+#             return f"{attacker.name} used {moveName}! It did {dmg} damage!"
+#         elif move["Category"] == "Special":
+#             power = int(move["Power"])
+#             dmg = int(power*attacker.SPattack*modATK/
+#                       (1+modDEF*defender.SPdefense))
+#             defender.decrHP(dmg)
+#             return f"{attacker.name} used {moveName}! It did {dmg} damage!"
+
+# def startEncounter(app):
+#     pok1 = random.choice(list(pokemonList.keys()))
+#     pok2 = random.choice(list(pokemonList.keys()))
+#     j0 = Pokemon(20, pok1, pokemonList[pok1])
+#     p0 = Pokemon(20, pok2, pokemonList[pok2])
+#     j1 = copy.deepcopy(j0)
+#     p1 = copy.deepcopy(p0)
+
+#     while j1.hp > 0 and p1.hp > 0:
+#         if j1.speed > p1.speed:
+#             first1, first0 = j1, j0
+#             second1, second0 = p1, p0
+#         else:
+#             first1, first0 = p1, p0
+#             second1, second0 = j1, j0
+#         move0 = selectMove(first1, second1, app)
+#         move1 = selectMove(second1, first1, app)
+#         print("\n\n\n")
+#         print(doAttack(move0, first1, second1, first0, second0))
+#         if second1.hp < 0:
+#             print(f"{first1.name} wins!")
+#             app.mode == "overworldMode"
+#             break
+#         print(doAttack(move1, second1, first1, second0, first0))
+#         if first1.hp < 0:
+#             print(f"{second1.name} wins!")
+#             app.mode == "overworldMode"
+
+# def selectMove(attack, defend, app):    
+#     app.battleText = (f"\nIt's {attack.name}'s (level {attack.lvl}) turn! It has " +
+#             f"{attack.hp} hp. {defend.name} has {defend.hp} hp. Moves:")
+#     for i in range(len(attack.moves)):
+#         app.battleText += f"\n{i} - {attack.moves[i]}"
+#     i = 0
+#     while i < 1:
+#         index = input("Choose your move: ")
+#         if index.isdigit() and 0 <= int(index) < len(attack.moves):
+#             return attack.moves[int(index)]
+#         else:
+#             print("\n\nPlease don't be an ass and choose a valid move")
+
+
+
+# Main draw element
+def main():
+    runApp(width=693, height=693)
+
+if __name__ == '__main__':
+    main()
+

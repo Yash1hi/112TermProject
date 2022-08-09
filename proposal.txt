@@ -1,0 +1,38 @@
+Pokemon but Not Really
+A procedurally generating pokemon game. Travel as a trainer across the world and
+battle, catch, and store your pokemon along the way.
+
+
+  __                                _            
+ (_ _|_ ._     _ _|_     ._ _. |   |_) |  _. ._  
+ __) |_ | |_| (_  |_ |_| | (_| |   |   | (_| | |                                                                     
+The following will be in splashscreens
+Overworld:
+Board is stored in a 2D array
+Player is stored in a class
+movePlayer(keyPressed)
+Battle:
+Pokemon stored as classes
+Inventory represented as set
+
+                                           _            
+  /\  |  _   _  ._ o _|_ |_  ._ _  o  _   |_) |  _. ._  
+ /--\ | (_| (_) |  |  |_ | | | | | | (_   |   | (_| | | 
+         _|                                             
+⋆Sidescrolling: take a player row/col value and display a certain amount of rows
+and cols from the board a distance from the player on the screen
+⋆Generation: Perlin noice to create noise values and sample those to create
+values for one of 3 types of overworld tile based on range
+Pokemon Creation: Parse through csv files of pokemon to form stats and moves
+to determine what different moves do. Store those in dictionaries and use those
+to create Pokemon objects with those values. 
+Pokemon Battles: Use methods within the pokemon classes to deal and take damage,
+as well as store any status/debuff values within it. 
+
+Most difficult (⋆)
+
+                           _                    
+ \  / _  ._ _ o  _  ._    /   _  ._ _|_ ._ _  | 
+  \/ (/_ | _> | (_) | |   \_ (_) | | |_ | (_) | 
+Using github to back up code after major changes. Not using branches right now.
+./TP1/TP1_Github                          
