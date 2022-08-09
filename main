@@ -364,15 +364,15 @@ def startBattle(app):
     app.infoX = app.infoW
     app.infoY = app.height*5/13
     app.tickCount = 0
-    app.timerDelay = 50
+    app.timerDelay = 25
     app.pokCloseX = app.width/4
     app.pokCloseY = app.bgImage.size[1]-75
     app.textBoxSize = 100
     app.newMessage = f"A wild {app.pokFar.name} appeared!"
     app.battleText = ""
     app.battleState = "Entering"
-    app.selection = make2dList(2, 2, "grey69")
-    app.selection[0][0] = "dark red"
+    app.selection= (0, 0)
+    app.textSpeed = 1
 
 def createImagesBattle(app):
     bg = app.loadImage('./TileSprites/BattleTiles.png').crop((6, 440, 256, 582))
@@ -381,6 +381,7 @@ def createImagesBattle(app):
 
 def battleMode_redrawAll(app, canvas):
     drawBackground(app, canvas)
+    drawInfoBox(app, canvas)
     drawPokemon(app, canvas)
     drawTextBox(app, canvas)
     if app.battleState == "Choosing":
@@ -390,15 +391,23 @@ def drawBackground(app, canvas):
     canvas.create_image(app.width/2, app.bgImage.size[1]/2, 
                         image=ImageTk.PhotoImage(app.bgImage))
 
-def drawPokemon(app, canvas):
+def drawInfoBox(app, canvas):
     m = 2
-    canvas.create_rectangle(app.pokCloseX-90, app.pokCloseY-90, app.pokCloseX+90, 
-                            app.pokCloseY+90, fill="dark salmon", width=4, outline="black")
+    font = "ComicSansMS 20"
     canvas.create_rectangle(app.infoX, app.infoY, app.infoX+app.infoW, 
                             app.infoY+app.infoH, fill="grey85", width=m, 
                             outline="white")
     canvas.create_rectangle(app.infoX+m, app.infoY+m, app.infoX+app.infoW, 
-                            app.infoY+m+10, fill="grey30", outline="grey30") 
+                            app.infoY+m+10, fill="grey30", outline="grey30")
+    canvas.create_text(app.infoX+20, app.infoY+20, anchor="nw", font=font, 
+                       text=app.pokClose.name, fill="grey30") 
+    canvas.create_text(app.width-10, app.infoY+20, anchor="ne", font=font,
+                       text="Lv"+str(app.pokClose.lvl), fill="grey30") 
+
+def drawPokemon(app, canvas):
+    canvas.create_rectangle(app.pokCloseX-90, app.pokCloseY-90, app.pokCloseX+90, 
+                            app.pokCloseY+90, fill="dark salmon", width=4, outline="black")
+    
     
     canvas.create_rectangle(app.width*3/4+60, app.height/4+65, app.width*3/4-60, 
                             app.height/4-55, fill="LemonChiffon4", width=4, outline="black")
@@ -408,7 +417,7 @@ def drawTextBox(app, canvas):
     canvas.create_rectangle(0, app.bgImage.size[1], app.width, 
                             app.bgImage.size[1]+app.textBoxSize,
                             fill="grey90", width=m, outline="gold")
-    font = "ComicSansMS 20"
+    font = "ComicSansMS 25"
     canvas.create_text(20, app.bgImage.size[1]+app.textBoxSize/2, anchor="w",
                        text=app.battleText, font=font, fill="black")
 
@@ -424,7 +433,7 @@ def drawMoves(app, canvas):
         for col in range(2):
             canvas.create_rectangle(col*outBoxW, yTop+row*outBoxH, 
                                     (col+1)*outBoxW, yTop+(row+1)*outBoxH, 
-                                    fill=app.selection[row][col], width=0)
+                                    fill="grey48", width=0)
             x0 = (2*col+1)*m + col*inBoxW
             y0 = yTop + (2*row+1)*m + row*inBoxH
             x1 = (2*col+1)*m + (col+1)*inBoxW
@@ -436,26 +445,31 @@ def drawMoves(app, canvas):
             move += 1
 
 def battleMode_keyPressed(app, event):
-    if "appeared!" in app.battleText or "appeared!" in app.newMessage:
-        app.battleText = ""
-        app.newMessage = f"Go! {app.pokClose.name}!"
-    elif "Go!" in app.battleText or "Go!" in app.newMessage:
-        app.battleText = ""
-        app.newMessage = f"What will {app.pokClose.name} do?"
-        app.battleState = "Choosing"
-            
+    if event.key == "z":
+        if "appeared!" in app.battleText:
+            app.battleText = ""
+            app.newMessage = f"Go! {app.pokClose.name}!"
+        elif f"Go! {app.pokClose.name}!" in app.battleText:
+            app.battleText = ""
+            app.newMessage = f"What will {app.pokClose.name} do?"
+            app.battleState = "Choosing"            
+        app.textSpeed = 3
+
+def battleMode_keyReleased(app, event):
+    if event.key == "z":
+        app.textSpeed = 1
 
 def battleMode_timerFired(app):
     if app.battleState == "Choosing":
         if app.tickCount//5 % 2 == 0:
             app.infoY -= 2
-            app.pokCloseY -= 2
+            app.pokCloseY += 2
         else:
             app.infoY += 2
-            app.pokCloseY += 2
+            app.pokCloseY -= 2
     if app.newMessage != "":
-        app.battleText += app.newMessage[0]
-        app.newMessage = app.newMessage[1:]
+        app.battleText += app.newMessage[0:app.textSpeed]
+        app.newMessage = app.newMessage[app.textSpeed:]
     app.tickCount += 1    
 
 # def doDamage(power, attacker, defender, modATK, modDEF):
