@@ -18,6 +18,7 @@ def roundHalfUp(d): #helper-fn
     # https://docs.python.org/3/library/decimal.html#rounding-modes
     return int(decimal.Decimal(d).to_integral_value(rounding=rounding))
 
+# Takes in string and makes a list from a string that looks like one
 def makeListFromString(s):
     isWord = False
     result = []
@@ -34,6 +35,7 @@ def makeListFromString(s):
             isWord = not isWord
     return result
 
+# Helper to select 4 distinct moves that do damage
 def selectMoves(moveSet, i):
     addedMoves = [""] * i
     while i > 0:
@@ -135,32 +137,7 @@ class Pokemon(object):
         self.speed = roundHalfUp(self.baseSPD + self.lvl * self.modSPD)
     
     def getMaxHP(self):
-        return roundHalfUp(self.baseHP + self.lvl * self.modHP)
-
-    def incrHP(self, incr):
-        self.hp = int(roundHalfUp(self.hp + incr))
-
-    def decrHP(self, decr):
-        self.hp = int(roundHalfUp(self.hp - decr))
-    
-    def incrAttack(self, incr):
-        self.attack = int(roundHalfUp(self.attack + incr))
-
-    def decrAttack(self, decr):
-        self.attack = int(roundHalfUp(self.attack - decr))
-    
-    def incrDefense(self, incr):
-        self.defense = int(roundHalfUp(self.defense + incr))
-
-    def decrDefense(self, decr):
-        self.defense = int(roundHalfUp(self.defense - decr))
-    
-    def incrSpeed(self, incr):
-        self.speed = int(roundHalfUp(self.speed + incr))
-
-    def decrSpeed(self, decr):
-        self.speed = int(roundHalfUp(self.speed - decr))
-
+        return roundHalfUp(self.baseHP + self.lvl * self.modHP)    
 
     def __repr__(self):
         return(
@@ -191,11 +168,13 @@ def appStarted(app):
     elif app.mode == "battleMode":
         startBattle(app)
 
+# If click in button, gen map and allow movement
 def startMode_mousePressed(app, event):
     if inButton(app, event.x, event.y):
         startOverworld(app)
         app.mode = "overworldMode"
 
+# Checks if given cords are in button
 def inButton(app, x, y):
     if (app.width/2-95 <= x <= app.width/2+95 and 
        app.height*2/3-45 <= y <= app.height*2/3+45):
@@ -203,11 +182,13 @@ def inButton(app, x, y):
     return False
 
 def startMode_redrawAll(app, canvas):
+    # Draws name of game
     font = "ComicSansMs 100 bold"
     canvas.create_text(app.width/2, app.height/2, text="Pokemon 112", 
                        font=font, fill="black")
     drawButton(app, canvas)
 
+# Draws the button below the text
 def drawButton(app, canvas):
     w = 190
     h = 90
@@ -237,7 +218,7 @@ def startOverworld(app):
     app.tileSize = app.width // app.shownRowsCols
     app.rows = 60
     app.cols = 60
-    app.encounterChance = 100
+    app.encounterChance = 10
     # Player Properties
     playerImage = app.loadImage('./TrainerSprites/trchar142.png')
     app.player = Player(app.rows//2, app.cols//2, playerImage)
@@ -372,6 +353,7 @@ def drawElementOver(app, canvas):
         canvas.create_image((col+0.5)*app.tileSize, (row+0.5)*app.tileSize, 
                              image=ImageTk.PhotoImage(app.g))
 
+# Draws score in top right
 def drawScore(app, canvas):
     font = "ComicSansMS 20 bold"
     canvas.create_rectangle(app.width-100, 0, app.width, 30, fill="grey40", 
@@ -391,85 +373,64 @@ def drawScore(app, canvas):
 ###############################################################################
 ###############################################################################
 
+# Sets up variables for battle
 def startBattle(app):
-    app.bgImage = createImagesBattle(app)
+    # Draw pokemon/background
+    app.bgImage = createImagesBattle(app) 
+    app.pokCloseX = app.width/4
+    app.pokCloseY = app.bgImage.size[1]-75 
+    # Pokemon/Battle values
     pok1 = random.choice(list(pokemonList.keys()))
     pok2 = random.choice(list(pokemonList.keys()))
     app.pokClose = Pokemon(40, pok1, pokemonList[pok1])
     app.pokFar = Pokemon(40, pok2, pokemonList[pok2])
+    app.first, app.second, app.move0, app.move1 = -1, -1, -1, -1
+    # Info box variables
     app.infoH, app.infoW = 100, app.width/2
     app.infoX = app.infoW
     app.infoY = app.height*5/13
+    app.displayHPClose = app.pokClose.hp
+    app.displayHPFar = app.pokFar.hp
+    # Timer fired variables
     app.tickCount = 0
     app.timerDelay = 25
-    app.pokCloseX = app.width/4
-    app.pokCloseY = app.bgImage.size[1]-75
+    # Text box values
     app.textBoxSize = 100
     app.newMessage = f"A wild {app.pokFar.name} appeared!"
     app.battleText = ""
-    app.battleState = "Entering"
-    app.selection= (0, 0)
     app.textSpeed = 1
-    app.displayHPClose = app.pokClose.hp
-    app.first, app.second, app.move0, app.move1 = -1, -1, -1, -1
-    app.displayHPFar = app.pokFar.hp
+    # Chosing
+    app.selection = (0, 0)
+    # State
+    app.battleState = "Entering"
 
+# Helper to create the background for the battle
 def createImagesBattle(app):
     bg = app.loadImage('./TileSprites/BattleTiles.png').crop((6, 440, 256, 582))
     scale = (app.width/bg.size[0])
     return app.scaleImage(bg, scale)
 
+# Draws all
 def battleMode_redrawAll(app, canvas):
     drawBackground(app, canvas)
     drawInfoBox1(app, canvas)
     drawInfoBox2(app, canvas)
     drawPokemon(app, canvas)
     drawTextBox(app, canvas)
+    # Only draw the moves if you state is choosing
     if app.battleState == "Choosing":
         drawMoves(app, canvas)
 
+# Draws the image background that fills the width of screen
 def drawBackground(app, canvas):
     canvas.create_image(app.width/2, app.bgImage.size[1]/2, 
                         image=ImageTk.PhotoImage(app.bgImage))
 
-def drawInfoBox2(app, canvas):
-    m = 2
-    font = "ComicSansMS 20"
-    x0 = 0
-    y0 = 40
-    h = 80
-    w = 250
-    canvas.create_rectangle(x0, y0, x0+app.infoW, 
-                            y0+app.infoH, fill="grey85", width=m, 
-                            outline="white")
-    canvas.create_rectangle(x0+m, y0+m, x0+app.infoW, 
-                           y0+m+10, fill="grey30", outline="grey30")
-    canvas.create_text(x0+20, y0+20, anchor="nw", font=font, 
-                       text=app.pokFar.name, fill="grey30") 
-    canvas.create_text(x0+app.infoW-10, y0+20, anchor="ne", font=font,
-                       text="Lv"+str(app.pokFar.lvl), fill="grey30") 
-    canvas.create_text(x0+140, y0+50, anchor="ne", font=font,
-                       text="HP", fill="grey30")
-
-    l = 150
-    h = 10
-    x0 = x0+145
-    y0 = y0+60
-    x1 = x0 + (l*(app.displayHPFar/app.pokFar.getMaxHP()))
-    y1 = y0+h
-    if (app.displayHPFar/app.pokFar.getMaxHP()) > 0.5:
-        fill = "green"
-    elif (app.displayHPFar/app.pokFar.getMaxHP()) > 0.2:
-        fill = "gold"
-    else:
-        fill = "red"
-    canvas.create_rectangle(x0-m, y0-m, x0+l+m, y1+m, fill="white", width=0)
-    canvas.create_rectangle(x0, y0, x1, y1, fill=fill, width=0)
-
-
+# Draws the infoBox for the close pokemon
 def drawInfoBox1(app, canvas):
     m = 2
     font = "ComicSansMS 20"
+    # Outer box
     canvas.create_rectangle(app.infoX, app.infoY, app.infoX+app.infoW, 
                             app.infoY+app.infoH, fill="grey85", width=m, 
                             outline="white")
@@ -477,26 +438,76 @@ def drawInfoBox1(app, canvas):
                             app.infoY+m+10, fill="grey30", outline="grey30")
     canvas.create_text(app.infoX+20, app.infoY+20, anchor="nw", font=font, 
                        text=app.pokClose.name, fill="grey30") 
+    # Level in top left
     canvas.create_text(app.width-10, app.infoY+20, anchor="ne", font=font,
                        text="Lv"+str(app.pokClose.lvl), fill="grey30") 
+    # HP right before HP Bar
     canvas.create_text(app.infoX+140, app.infoY+50, anchor="ne", font=font,
                        text="HP", fill="grey30")
 
+    # HP bar variab;es
     l = 150
     h = 10
     x0 = app.infoX+145
     y0 = app.infoY+60
     x1 = x0 + (l*(app.displayHPClose/app.pokClose.getMaxHP()))
     y1 = y0+h
+    # Change HP bar color at certain thresholds
     if (app.displayHPClose/app.pokClose.getMaxHP()) > 0.5:
         fill = "green"
     elif (app.displayHPClose/app.pokClose.getMaxHP()) > 0.2:
         fill = "gold"
     else:
         fill = "red"
+    # Create Hp bar
     canvas.create_rectangle(x0-m, y0-m, x0+l+m, y1+m, fill="white", width=0)
     canvas.create_rectangle(x0, y0, x1, y1, fill=fill, width=0)
+    # Draw text of HP under hp bar
+    HPtxt = str(app.pokClose.hp) + "/" + str(app.pokClose.getMaxHP())
+    canvas.create_text((2*x0+2*m+l)/2, y1, anchor="n", text=HPtxt, fill="black")
 
+# Draws info box for far pokemon (doesn't include exact health)
+def drawInfoBox2(app, canvas):
+    # Variables for box
+    m = 2
+    font = "ComicSansMS 20"
+    x0 = 0
+    y0 = 40
+    # Draws outer box in top left
+    canvas.create_rectangle(x0, y0, x0+app.infoW, 
+                            y0+app.infoH, fill="grey85", width=m, 
+                            outline="white")
+    canvas.create_rectangle(x0+m, y0+m, x0+app.infoW, 
+                           y0+m+10, fill="grey30", outline="grey30")
+    canvas.create_text(x0+20, y0+20, anchor="nw", font=font, 
+                       text=app.pokFar.name, fill="grey30") 
+    # Draws level and HP before bar
+    canvas.create_text(x0+app.infoW-10, y0+20, anchor="ne", font=font,
+                       text="Lv"+str(app.pokFar.lvl), fill="grey30") 
+    canvas.create_text(x0+140, y0+50, anchor="ne", font=font,
+                       text="HP", fill="grey30")
+
+    # Draws HP bar for far pokemon 
+    l = 150
+    h = 10
+    x0 = x0+145
+    y0 = y0+60
+    x1 = x0 + (l*(app.displayHPFar/app.pokFar.getMaxHP()))
+    y1 = y0+h
+    # Changes color at thresholds
+    if (app.displayHPFar/app.pokFar.getMaxHP()) > 0.5:
+        fill = "green"
+    elif (app.displayHPFar/app.pokFar.getMaxHP()) > 0.2:
+        fill = "gold"
+    else:
+        fill = "red"
+    # Draws HP bar
+    canvas.create_rectangle(x0-m, y0-m, x0+l+m, y1+m, fill="white", width=0)
+    canvas.create_rectangle(x0, y0, x1, y1, fill=fill, width=0)
+    # Note: there is no hp exact for far as you shouldn't know health of far
+    # pokemon
+
+# Draws the pokemon on the background
 def drawPokemon(app, canvas):
     canvas.create_rectangle(app.pokCloseX-90, app.pokCloseY-90, app.pokCloseX+90, 
                             app.pokCloseY+90, fill="dark salmon", width=4, outline="black")
@@ -504,6 +515,7 @@ def drawPokemon(app, canvas):
     canvas.create_rectangle(app.width*3/4+60, app.height/4+65, app.width*3/4-60, 
                             app.height/4-55, fill="LemonChiffon4", width=4, outline="black")
 
+# Draws the text box to display battle messages below background
 def drawTextBox(app, canvas):
     m = 7
     canvas.create_rectangle(0, app.bgImage.size[1], app.width, 
@@ -513,19 +525,25 @@ def drawTextBox(app, canvas):
     canvas.create_text(20, app.bgImage.size[1]+app.textBoxSize/2, anchor="w",
                        text=app.battleText, font=font, fill="black")
 
+# Draws possible moves for your pokemon wheni n choose phase
 def drawMoves(app, canvas):
+    # Variables for each choose move box
     m = 10
     yTop = app.bgImage.size[1] + app.textBoxSize
     outBoxW = app.width/2
     outBoxH = (app.height-yTop)/2
     inBoxW = app.width/2 - 2*m
     inBoxH = (app.height-yTop)/2 - 2*m
+    # increments to select move
     move = 0
+    # Create the 4 boxes
     for row in range(2):
         for col in range(2):
+            # Color is default grey, but if selected make it red
             fill = "grey48"
             if row == app.selection[0] and col == app.selection[1]:
                 fill = "red"
+            # Draw the outer rectangle
             canvas.create_rectangle(col*outBoxW, yTop+row*outBoxH, 
                                     (col+1)*outBoxW, yTop+(row+1)*outBoxH, 
                                     fill=fill, width=0)
@@ -533,26 +551,34 @@ def drawMoves(app, canvas):
             y0 = yTop + (2*row+1)*m + row*inBoxH
             x1 = (2*col+1)*m + (col+1)*inBoxW
             y1 = yTop + (2*row+1)*m + (row+1)*inBoxH
+            # Draw inner rectangle
             canvas.create_rectangle(x0, y0, x1, y1, fill="white", width=0)
+            # Draw move in the center of rectangle
             font = "ComicSansMS 26 bold"
             moveName = app.pokClose.moves[move]
             canvas.create_text((x0+x1)/2, (y0+y1)/2, fill="black", font=font,
                                 text=moveName)
+            # Add power in the bottom right
             font = "ComicSansMS 19"
             canvas.create_text(x1, y1, fill="black", font=font, anchor="se",
                                 text="Power:"+str(moveList[moveName]["Power"]))
+            # Incrementation so draw all moves
             move += 1
 
+# Key pressed function that calls other based on state
 def battleMode_keyPressed(app, event):
+    # No matter what, if z is pressed/held, speed up text
     if event.key == "z":
         app.textSpeed = 3   
+    # Give diff options based on state
     if app.battleState == "Entering":
         enteringKeyPressed(app, event)
     elif app.battleState == "Choosing":
         chooseKeyPressed(app, event)
     if app.battleState == "Battle":
         battleKeyPressed(app, event)
-    
+
+# When in entering mode, pressing z goes to next text  
 def enteringKeyPressed(app, event):
     if event.key == "z" and app.battleState == "Entering":
         if "appeared!" in app.battleText:
@@ -563,7 +589,9 @@ def enteringKeyPressed(app, event):
             app.newMessage = f"What will {app.pokClose.name} do?"
             app.battleState = "Choosing"
 
+# When state is choosing
 def chooseKeyPressed(app, event): 
+    # Change selected move
     drow, dcol = 0, 0        
     if event.key == "Up":
         drow, dcol = -1, 0
@@ -575,10 +603,13 @@ def chooseKeyPressed(app, event):
         drow, dcol = 0, -1
     nRow = drow + app.selection[0]
     nCol = dcol + app.selection[1]
+    # Don't go over possible moves
     if nRow >= 0 and nRow < 2 and nCol >= 0 and nCol < 2:
         app.selection = (nRow, nCol)
 
-    if event.key == "x" and "do?" in app.battleText:
+    # Once pressed x, do selected move and change state
+    if (app.displayHPFar == app.pokFar.hp and event.key == "x" and 
+       app.displayHPClose == app.pokClose.hp and "do?" in app.battleText):
         if app.selection[0] == 1: row = 2
         else: row = 0
         moveName = app.pokClose.moves[row + app.selection[1]]
@@ -586,31 +617,42 @@ def chooseKeyPressed(app, event):
         setupTurn(app, moveName)
         doAttack(app, app.move0, app.first, app.second)
 
+# Do things in battle state
 def battleKeyPressed(app, event):
+    # When z is pressed
     if event.key == "z":
+        # If the game is over, switch back to overworld
         if "won!" in app.battleText:
             if app.score == 1: app.mode = "endMode"
             else: app.mode = "overworldMode"
+        # If someone won, make text won
         elif app.pokClose.hp <= 0: 
             app.battleText = ""
             app.newMessage = f"{app.pokFar.name} won!"
             app.score -= 1
         elif app.pokFar.hp <= 0: 
+            app.pokFar.hp = 0
             app.battleText = ""
             app.newMessage = f"{app.pokClose.name} won!"
             app.score += 1
+        # Do second move
         elif app.move0 in app.battleText:
             doAttack(app, app.move1, app.second, app.first)
+        # After second move, switch back to choosing state (if not won)
         elif app.move1 in app.battleText:
             app.battleState = "Choosing"
             app.battleText = ""
             app.newMessage = f"What will {app.pokClose.name} do?"
 
+# If z is not pressed, have normal text speed
 def battleMode_keyReleased(app, event):
     if event.key == "z":
         app.textSpeed = 1
 
+# Timer fired makes the pokemon bounce while choosing, text scroll when new 
+# message, and makes HP bar lower
 def battleMode_timerFired(app):
+    # Bounce when in choose phase
     if app.battleState == "Choosing":
         if app.tickCount//5 % 2 == 0:
             app.infoY -= 2
@@ -618,20 +660,25 @@ def battleMode_timerFired(app):
         else:
             app.infoY += 2
             app.pokCloseY -= 2
+    # Scroll through text when new message is added
     if app.newMessage != "":
+        # Textspeed changes how many chars displayed on tick
         app.battleText += app.newMessage[0:app.textSpeed]
         app.newMessage = app.newMessage[app.textSpeed:]
+    # Change hp bar if the displayed and actual are not the same
     if app.displayHPClose > app.pokClose.hp and app.displayHPClose >= 0:
-        app.displayHPClose -= 2
+        app.displayHPClose -= 3
         if app.displayHPClose < app.pokClose.hp:
             app.displayHPClose = app.pokClose.hp
-    if app.displayHPFar > app.pokFar.hp and app.displayHPFar >= 0:
-        app.displayHPFar -= 2
+    elif app.displayHPFar > app.pokFar.hp and app.displayHPFar >= 0:
+        app.displayHPFar -= 3
         if app.displayHPFar < app.pokFar.hp:
             app.displayHPFar = app.pokFar.hp
     app.tickCount += 1
 
+# Sets up first turn
 def setupTurn(app, moveClose):
+    # Finds first and second pokemon based on their speeds
     moveFar = random.choice(app.pokFar.moves)
     if app.pokClose.speed > app.pokFar.speed:
         app.first, app.second = app.pokClose, app.pokFar
@@ -640,23 +687,35 @@ def setupTurn(app, moveClose):
         app.second, app.first = app.pokClose, app.pokFar
         app.move1, app.move0 = moveClose, moveFar
 
+# Does an attack that decreases HP
 def doAttack(app, move, attacker, defender):
+    # Set up variables for damage and calculations
     modATK = 0.01
     modDEF = 0.01
     moveName = move
     move = moveList[move]
+    # Make sure move actually does damage
     if move["Power"] != "None":
+        # Calc based on physical attributes
         if move["Category"] == "Physical":
             power = int(move["Power"])
             dmg = int(power*attacker.attack*modATK/(1+modDEF*defender.defense))
-            defender.decrHP(dmg)
+            defender.hp -= dmg
+        # Calc based on special attributes
         elif move["Category"] == "Special":
             power = int(move["Power"])
             dmg = int(power*attacker.SPattack*modATK/
                       (1+modDEF*defender.SPdefense))
-            defender.decrHP(dmg)
+            defender.hp -= dmg
+        # Make battle text
         app.battleText = ""
-        app.newMessage = f"{attacker.name} used {moveName}! It did {dmg} damage!"
+        app.newMessage = (f"{attacker.name} used {moveName}!" + 
+                          f"It did {dmg} damage!")
+        # Make sure damage taker doesn't drop below 0 hp
+        if defender.hp < 0:
+            defender.hp = 0
+
+
 
 ###############################################################################
 ###############################################################################
@@ -669,6 +728,7 @@ def doAttack(app, move, attacker, defender):
 ###############################################################################
 ###############################################################################
 
+# Draw text for end game
 def endMode_redrawAll(app, canvas):
     font = "ComicSansMs 150 bold"
     canvas.create_text(app.width/2, app.height/2, font=font, text="You Won!",
@@ -676,6 +736,8 @@ def endMode_redrawAll(app, canvas):
     instruc = "Press r to restart\nPress c to continue game"
     canvas.create_text(app.width/2, app.height*3/4, font="ComicSansMs 40", 
                        text=instruc, fill="black")
+
+# Continue the game if c is pressed, restart if r is pressed
 def endMode_keyPressed(app, event):
     if event.key == "r":
         app.mode = "startMode"
