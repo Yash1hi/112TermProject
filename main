@@ -171,25 +171,65 @@ class Pokemon(object):
         f"{self.defense}, spdf={self.SPdefense}, sp={self.speed}"
         f"\n")
 
-
 ###############################################################################
 ###############################################################################
-# ________                          .__            ____   
-# \______ \ _______ _____  __  _  __|__|  ____    / ___\  
-#  |    |  \\_  __ \\__  \ \ \/ \/ /|  | /    \  / /_/  > 
-#  |    `   \|  | \/ / __ \_\     / |  ||   |  \ \___  /  
-# /_______  /|__|   (____  / \/\_/  |__||___|  //_____/   
-#         \/             \/                  \/           
+#   _________  __                    __    
+#  /   _____/_/  |_ _____  _______ _/  |_  
+#  \_____  \ \   __\\__  \ \_  __ \\   __\ 
+#  /        \ |  |   / __ \_|  | \/ |  |   
+# /_______  / |__|  (____  /|__|    |__|   
+#         \/             \/                
 ###############################################################################
-###############################################################################
+###############################################################################                                      
 
 # Initialize all variables
 def appStarted(app):
-    app.mode = "overworldMode"
+    app.score = 0
+    app.mode = "startMode"
     if app.mode == "overworldMode":
         startOverworld(app)
     elif app.mode == "battleMode":
         startBattle(app)
+
+def startMode_mousePressed(app, event):
+    if inButton(app, event.x, event.y):
+        startOverworld(app)
+        app.mode = "overworldMode"
+
+def inButton(app, x, y):
+    if (app.width/2-95 <= x <= app.width/2+95 and 
+       app.height*2/3-45 <= y <= app.height*2/3+45):
+        return True
+    return False
+
+def startMode_redrawAll(app, canvas):
+    font = "ComicSansMs 100 bold"
+    canvas.create_text(app.width/2, app.height/2, text="Pokemon 112", 
+                       font=font, fill="black")
+    drawButton(app, canvas)
+
+def drawButton(app, canvas):
+    w = 190
+    h = 90
+    x = app.width/2
+    y = app.height*2/3
+    canvas.create_rectangle(x-w/2, y-h/2, x+w/2, y+h/2, fill="yellow green", 
+                            width=6, outline="forest green")
+    font = "ComicSansMS 60"
+    canvas.create_text(x, y, text="Start", font=font, fill="black")
+
+
+
+###############################################################################
+###############################################################################
+# ________                                               .__       .___ 
+# \_____  \ ___  __  ____ _______ __  _  __ ____ _______ |  |    __| _/ 
+#  /   |   \\  \/ /_/ __ \\_  __ \\ \/ \/ //  _ \\_  __ \|  |   / __ |  
+# /    |    \\   / \  ___/ |  | \/ \     /(  <_> )|  | \/|  |__/ /_/ |  
+# \_______  / \_/   \___  >|__|     \/\_/  \____/ |__|   |____/\____ |  
+#         \/            \/                                          \/  
+###############################################################################
+###############################################################################                                                             
 
 def startOverworld(app):
     # Board properties
@@ -199,7 +239,6 @@ def startOverworld(app):
     app.cols = 60
     app.encounterChance = 100
     # Player Properties
-
     playerImage = app.loadImage('./TrainerSprites/trchar142.png')
     app.player = Player(app.rows//2, app.cols//2, playerImage)
     # Create Board fills
@@ -230,17 +269,6 @@ def createGridFills(app):
     for row in range(-3, 4):
         for col in range(-3, 4):
             app.grid[app.player.row+row][app.player.col+col] = 0
-
-###############################################################################
-###############################################################################
-# ________                                               .__       .___ 
-# \_____  \ ___  __  ____ _______ __  _  __ ____ _______ |  |    __| _/ 
-#  /   |   \\  \/ /_/ __ \\_  __ \\ \/ \/ //  _ \\_  __ \|  |   / __ |  
-# /    |    \\   / \  ___/ |  | \/ \     /(  <_> )|  | \/|  |__/ /_/ |  
-# \_______  / \_/   \___  >|__|     \/\_/  \____/ |__|   |____/\____ |  
-#         \/            \/                                          \/  
-###############################################################################
-###############################################################################                                                             
 
 def overworldMode_keyPressed(app, event):
     # Initial move is 0, 0
@@ -292,6 +320,7 @@ def overworldMode_redrawAll(app, canvas):
     drawGrid(app, canvas)
     drawPlayer(app, canvas)
     drawElementOver(app, canvas)
+    drawScore(app, canvas)
 
 # Draws all tiles on the board through a 2d list
 # By default all of these are drawn behind the player
@@ -343,6 +372,14 @@ def drawElementOver(app, canvas):
         canvas.create_image((col+0.5)*app.tileSize, (row+0.5)*app.tileSize, 
                              image=ImageTk.PhotoImage(app.g))
 
+def drawScore(app, canvas):
+    font = "ComicSansMS 20 bold"
+    canvas.create_rectangle(app.width-100, 0, app.width, 30, fill="grey40", 
+                            width=5, outline="grey69")
+    canvas.create_text(app.width-10, 0, anchor="ne", font=font, 
+                       text="Score: " + str(app.score), fill="black")
+
+
 ###############################################################################
 ###############################################################################
 # __________          __     __   .__            
@@ -358,8 +395,8 @@ def startBattle(app):
     app.bgImage = createImagesBattle(app)
     pok1 = random.choice(list(pokemonList.keys()))
     pok2 = random.choice(list(pokemonList.keys()))
-    app.pokClose = Pokemon(20, pok1, pokemonList[pok1])
-    app.pokFar = Pokemon(20, pok2, pokemonList[pok2])
+    app.pokClose = Pokemon(40, pok1, pokemonList[pok1])
+    app.pokFar = Pokemon(40, pok2, pokemonList[pok2])
     app.infoH, app.infoW = 100, app.width/2
     app.infoX = app.infoW
     app.infoY = app.height*5/13
@@ -373,6 +410,9 @@ def startBattle(app):
     app.battleState = "Entering"
     app.selection= (0, 0)
     app.textSpeed = 1
+    app.displayHPClose = app.pokClose.hp
+    app.first, app.second, app.move0, app.move1 = -1, -1, -1, -1
+    app.displayHPFar = app.pokFar.hp
 
 def createImagesBattle(app):
     bg = app.loadImage('./TileSprites/BattleTiles.png').crop((6, 440, 256, 582))
@@ -381,7 +421,8 @@ def createImagesBattle(app):
 
 def battleMode_redrawAll(app, canvas):
     drawBackground(app, canvas)
-    drawInfoBox(app, canvas)
+    drawInfoBox1(app, canvas)
+    drawInfoBox2(app, canvas)
     drawPokemon(app, canvas)
     drawTextBox(app, canvas)
     if app.battleState == "Choosing":
@@ -391,7 +432,42 @@ def drawBackground(app, canvas):
     canvas.create_image(app.width/2, app.bgImage.size[1]/2, 
                         image=ImageTk.PhotoImage(app.bgImage))
 
-def drawInfoBox(app, canvas):
+def drawInfoBox2(app, canvas):
+    m = 2
+    font = "ComicSansMS 20"
+    x0 = 0
+    y0 = 40
+    h = 80
+    w = 250
+    canvas.create_rectangle(x0, y0, x0+app.infoW, 
+                            y0+app.infoH, fill="grey85", width=m, 
+                            outline="white")
+    canvas.create_rectangle(x0+m, y0+m, x0+app.infoW, 
+                           y0+m+10, fill="grey30", outline="grey30")
+    canvas.create_text(x0+20, y0+20, anchor="nw", font=font, 
+                       text=app.pokFar.name, fill="grey30") 
+    canvas.create_text(x0+app.infoW-10, y0+20, anchor="ne", font=font,
+                       text="Lv"+str(app.pokFar.lvl), fill="grey30") 
+    canvas.create_text(x0+140, y0+50, anchor="ne", font=font,
+                       text="HP", fill="grey30")
+
+    l = 150
+    h = 10
+    x0 = x0+145
+    y0 = y0+60
+    x1 = x0 + (l*(app.displayHPFar/app.pokFar.getMaxHP()))
+    y1 = y0+h
+    if (app.displayHPFar/app.pokFar.getMaxHP()) > 0.5:
+        fill = "green"
+    elif (app.displayHPFar/app.pokFar.getMaxHP()) > 0.2:
+        fill = "gold"
+    else:
+        fill = "red"
+    canvas.create_rectangle(x0-m, y0-m, x0+l+m, y1+m, fill="white", width=0)
+    canvas.create_rectangle(x0, y0, x1, y1, fill=fill, width=0)
+
+
+def drawInfoBox1(app, canvas):
     m = 2
     font = "ComicSansMS 20"
     canvas.create_rectangle(app.infoX, app.infoY, app.infoX+app.infoW, 
@@ -403,12 +479,28 @@ def drawInfoBox(app, canvas):
                        text=app.pokClose.name, fill="grey30") 
     canvas.create_text(app.width-10, app.infoY+20, anchor="ne", font=font,
                        text="Lv"+str(app.pokClose.lvl), fill="grey30") 
+    canvas.create_text(app.infoX+140, app.infoY+50, anchor="ne", font=font,
+                       text="HP", fill="grey30")
+
+    l = 150
+    h = 10
+    x0 = app.infoX+145
+    y0 = app.infoY+60
+    x1 = x0 + (l*(app.displayHPClose/app.pokClose.getMaxHP()))
+    y1 = y0+h
+    if (app.displayHPClose/app.pokClose.getMaxHP()) > 0.5:
+        fill = "green"
+    elif (app.displayHPClose/app.pokClose.getMaxHP()) > 0.2:
+        fill = "gold"
+    else:
+        fill = "red"
+    canvas.create_rectangle(x0-m, y0-m, x0+l+m, y1+m, fill="white", width=0)
+    canvas.create_rectangle(x0, y0, x1, y1, fill=fill, width=0)
 
 def drawPokemon(app, canvas):
     canvas.create_rectangle(app.pokCloseX-90, app.pokCloseY-90, app.pokCloseX+90, 
                             app.pokCloseY+90, fill="dark salmon", width=4, outline="black")
-    
-    
+
     canvas.create_rectangle(app.width*3/4+60, app.height/4+65, app.width*3/4-60, 
                             app.height/4-55, fill="LemonChiffon4", width=4, outline="black")
 
@@ -431,29 +523,88 @@ def drawMoves(app, canvas):
     move = 0
     for row in range(2):
         for col in range(2):
+            fill = "grey48"
+            if row == app.selection[0] and col == app.selection[1]:
+                fill = "red"
             canvas.create_rectangle(col*outBoxW, yTop+row*outBoxH, 
                                     (col+1)*outBoxW, yTop+(row+1)*outBoxH, 
-                                    fill="grey48", width=0)
+                                    fill=fill, width=0)
             x0 = (2*col+1)*m + col*inBoxW
             y0 = yTop + (2*row+1)*m + row*inBoxH
             x1 = (2*col+1)*m + (col+1)*inBoxW
             y1 = yTop + (2*row+1)*m + (row+1)*inBoxH
             canvas.create_rectangle(x0, y0, x1, y1, fill="white", width=0)
-            font = "Helvetica 26 bold"
+            font = "ComicSansMS 26 bold"
+            moveName = app.pokClose.moves[move]
             canvas.create_text((x0+x1)/2, (y0+y1)/2, fill="black", font=font,
-                                text=app.pokClose.moves[move])
+                                text=moveName)
+            font = "ComicSansMS 19"
+            canvas.create_text(x1, y1, fill="black", font=font, anchor="se",
+                                text="Power:"+str(moveList[moveName]["Power"]))
             move += 1
 
 def battleMode_keyPressed(app, event):
     if event.key == "z":
+        app.textSpeed = 3   
+    if app.battleState == "Entering":
+        enteringKeyPressed(app, event)
+    elif app.battleState == "Choosing":
+        chooseKeyPressed(app, event)
+    if app.battleState == "Battle":
+        battleKeyPressed(app, event)
+    
+def enteringKeyPressed(app, event):
+    if event.key == "z" and app.battleState == "Entering":
         if "appeared!" in app.battleText:
             app.battleText = ""
             app.newMessage = f"Go! {app.pokClose.name}!"
         elif f"Go! {app.pokClose.name}!" in app.battleText:
             app.battleText = ""
             app.newMessage = f"What will {app.pokClose.name} do?"
-            app.battleState = "Choosing"            
-        app.textSpeed = 3
+            app.battleState = "Choosing"
+
+def chooseKeyPressed(app, event): 
+    drow, dcol = 0, 0        
+    if event.key == "Up":
+        drow, dcol = -1, 0
+    elif event.key == "Down":
+        drow, dcol = 1, 0
+    elif event.key == "Right":
+        drow, dcol = 0, 1
+    elif event.key == "Left":
+        drow, dcol = 0, -1
+    nRow = drow + app.selection[0]
+    nCol = dcol + app.selection[1]
+    if nRow >= 0 and nRow < 2 and nCol >= 0 and nCol < 2:
+        app.selection = (nRow, nCol)
+
+    if event.key == "x" and "do?" in app.battleText:
+        if app.selection[0] == 1: row = 2
+        else: row = 0
+        moveName = app.pokClose.moves[row + app.selection[1]]
+        app.battleState = "Battle"
+        setupTurn(app, moveName)
+        doAttack(app, app.move0, app.first, app.second)
+
+def battleKeyPressed(app, event):
+    if event.key == "z":
+        if "won!" in app.battleText:
+            if app.score == 1: app.mode = "endMode"
+            else: app.mode = "overworldMode"
+        elif app.pokClose.hp <= 0: 
+            app.battleText = ""
+            app.newMessage = f"{app.pokFar.name} won!"
+            app.score -= 1
+        elif app.pokFar.hp <= 0: 
+            app.battleText = ""
+            app.newMessage = f"{app.pokClose.name} won!"
+            app.score += 1
+        elif app.move0 in app.battleText:
+            doAttack(app, app.move1, app.second, app.first)
+        elif app.move1 in app.battleText:
+            app.battleState = "Choosing"
+            app.battleText = ""
+            app.newMessage = f"What will {app.pokClose.name} do?"
 
 def battleMode_keyReleased(app, event):
     if event.key == "z":
@@ -470,74 +621,67 @@ def battleMode_timerFired(app):
     if app.newMessage != "":
         app.battleText += app.newMessage[0:app.textSpeed]
         app.newMessage = app.newMessage[app.textSpeed:]
-    app.tickCount += 1    
+    if app.displayHPClose > app.pokClose.hp and app.displayHPClose >= 0:
+        app.displayHPClose -= 2
+        if app.displayHPClose < app.pokClose.hp:
+            app.displayHPClose = app.pokClose.hp
+    if app.displayHPFar > app.pokFar.hp and app.displayHPFar >= 0:
+        app.displayHPFar -= 2
+        if app.displayHPFar < app.pokFar.hp:
+            app.displayHPFar = app.pokFar.hp
+    app.tickCount += 1
 
-# def doDamage(power, attacker, defender, modATK, modDEF):
-#     dmg = int(power*attacker.attack*modATK/(1+modDEF*defender.defense))
-#     defender.decrHP(dmg)
-#     return dmg
+def setupTurn(app, moveClose):
+    moveFar = random.choice(app.pokFar.moves)
+    if app.pokClose.speed > app.pokFar.speed:
+        app.first, app.second = app.pokClose, app.pokFar
+        app.move0, app.move1 = moveClose, moveFar
+    else:
+        app.second, app.first = app.pokClose, app.pokFar
+        app.move1, app.move0 = moveClose, moveFar
 
-# def doAttack(move, attacker, defender, attacker0 = 0, defender0 = 0):
-#     modATK = 0.01
-#     modDEF = 0.01
-#     moveName = move
-#     move = moveList[move]
-#     # Deals 40 damage to defender
-#     if move["Power"] != "None":
-#         if move["Category"] == "Physical":
-#             power = int(move["Power"])
-#             dmg = int(power*attacker.attack*modATK/(1+modDEF*defender.defense))
-#             defender.decrHP(dmg)
-#             return f"{attacker.name} used {moveName}! It did {dmg} damage!"
-#         elif move["Category"] == "Special":
-#             power = int(move["Power"])
-#             dmg = int(power*attacker.SPattack*modATK/
-#                       (1+modDEF*defender.SPdefense))
-#             defender.decrHP(dmg)
-#             return f"{attacker.name} used {moveName}! It did {dmg} damage!"
+def doAttack(app, move, attacker, defender):
+    modATK = 0.01
+    modDEF = 0.01
+    moveName = move
+    move = moveList[move]
+    if move["Power"] != "None":
+        if move["Category"] == "Physical":
+            power = int(move["Power"])
+            dmg = int(power*attacker.attack*modATK/(1+modDEF*defender.defense))
+            defender.decrHP(dmg)
+        elif move["Category"] == "Special":
+            power = int(move["Power"])
+            dmg = int(power*attacker.SPattack*modATK/
+                      (1+modDEF*defender.SPdefense))
+            defender.decrHP(dmg)
+        app.battleText = ""
+        app.newMessage = f"{attacker.name} used {moveName}! It did {dmg} damage!"
 
-# def startEncounter(app):
-#     pok1 = random.choice(list(pokemonList.keys()))
-#     pok2 = random.choice(list(pokemonList.keys()))
-#     j0 = Pokemon(20, pok1, pokemonList[pok1])
-#     p0 = Pokemon(20, pok2, pokemonList[pok2])
-#     j1 = copy.deepcopy(j0)
-#     p1 = copy.deepcopy(p0)
+###############################################################################
+###############################################################################
+# ___________            .___ 
+# \_   _____/  ____    __| _/ 
+#  |    __)_  /    \  / __ |  
+#  |        \|   |  \/ /_/ |  
+# /_______  /|___|  /\____ |  
+#         \/      \/      \/  
+###############################################################################
+###############################################################################
 
-#     while j1.hp > 0 and p1.hp > 0:
-#         if j1.speed > p1.speed:
-#             first1, first0 = j1, j0
-#             second1, second0 = p1, p0
-#         else:
-#             first1, first0 = p1, p0
-#             second1, second0 = j1, j0
-#         move0 = selectMove(first1, second1, app)
-#         move1 = selectMove(second1, first1, app)
-#         print("\n\n\n")
-#         print(doAttack(move0, first1, second1, first0, second0))
-#         if second1.hp < 0:
-#             print(f"{first1.name} wins!")
-#             app.mode == "overworldMode"
-#             break
-#         print(doAttack(move1, second1, first1, second0, first0))
-#         if first1.hp < 0:
-#             print(f"{second1.name} wins!")
-#             app.mode == "overworldMode"
-
-# def selectMove(attack, defend, app):    
-#     app.battleText = (f"\nIt's {attack.name}'s (level {attack.lvl}) turn! It has " +
-#             f"{attack.hp} hp. {defend.name} has {defend.hp} hp. Moves:")
-#     for i in range(len(attack.moves)):
-#         app.battleText += f"\n{i} - {attack.moves[i]}"
-#     i = 0
-#     while i < 1:
-#         index = input("Choose your move: ")
-#         if index.isdigit() and 0 <= int(index) < len(attack.moves):
-#             return attack.moves[int(index)]
-#         else:
-#             print("\n\nPlease don't be an ass and choose a valid move")
-
-
+def endMode_redrawAll(app, canvas):
+    font = "ComicSansMs 150 bold"
+    canvas.create_text(app.width/2, app.height/2, font=font, text="You Won!",
+                        fill="black")
+    instruc = "Press r to restart\nPress c to continue game"
+    canvas.create_text(app.width/2, app.height*3/4, font="ComicSansMs 40", 
+                       text=instruc, fill="black")
+def endMode_keyPressed(app, event):
+    if event.key == "r":
+        app.mode = "startMode"
+        appStarted(app)
+    if event.key == "c":
+        app.mode = "overworldMode"
 
 # Main draw element
 def main():
