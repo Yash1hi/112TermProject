@@ -113,6 +113,9 @@ class Player(object):
             for col in range(4):
                 sprite = image.crop((64*col, 64*row, 64*(col+1), 64*(row+1)))
                 self.sprites[row][col] = sprite
+        self.ownedPokemon = []
+        pok = "Serperior"
+        self.ownedPokemon.append(Pokemon(200, pok, pokemonList[pok]))
 
 class Pokemon(object):
     def __init__(self, level, name, stats):
@@ -147,6 +150,11 @@ class Pokemon(object):
         f"\nhp={self.hp}, atk={self.attack}, spatk={self.SPattack}, df="
         f"{self.defense}, spdf={self.SPdefense}, sp={self.speed}"
         f"\n")
+
+def createRandPokemon(app):
+    pok = random.choice(list(pokemonList.keys()))
+    return Pokemon(40, pok, pokemonList[pok])
+
 
 ###############################################################################
 ###############################################################################
@@ -220,7 +228,7 @@ def startOverworld(app):
     app.cols = 60
     app.encounterChance = 10
     # Player Properties
-    playerImage = app.loadImage('./TrainerSprites/trchar142.png')
+    playerImage = app.loadImage('./TrainerSprites/trchar170.png')
     app.player = Player(app.rows//2, app.cols//2, playerImage)
     # Create Board fills
     app.grid = make2dList(app.rows, app.cols)
@@ -380,9 +388,11 @@ def startBattle(app):
     app.pokCloseX = app.width/4
     app.pokCloseY = app.bgImage.size[1]
     # Pokemon/Battle values
-    pok1 = random.choice(list(pokemonList.keys()))
     pok2 = random.choice(list(pokemonList.keys()))
-    app.pokClose = Pokemon(40, pok1, pokemonList[pok1])
+    index = random.randint(0, len(app.player.ownedPokemon)-1)
+    while app.player.ownedPokemon[index].hp == 0:
+            index = random.randint(0, len(app.player.ownedPokemon)-1)    
+    app.pokClose = app.player.ownedPokemon[index]
     app.pokFar = Pokemon(40, pok2, pokemonList[pok2])
     initializeSprites(app)
     app.first, app.second, app.move0, app.move1 = -1, -1, -1, -1
@@ -406,18 +416,46 @@ def startBattle(app):
     app.battleState = "Entering"    
 
 def initializeSprites(app):
-    urlClose = ("https://img.pokemondb.net/sprites/heartgold-soulsilver/" + 
-                "back-normal/" + app.pokClose.name.lower() + ".png")
+    urlClose = createValidPokemonClose(app)
     initialSpriteClose = app.loadImage(urlClose)
     scale = 180/initialSpriteClose.size[0]
     app.pokCloseSprite = app.scaleImage(initialSpriteClose, scale)
     app.pokCloseSprite.apply_transparency()
-    urlFar = ("https://img.pokemondb.net/sprites/heartgold-soulsilver/" + 
-                "normal/" + app.pokFar.name.lower() + ".png")
+
+    urlFar = createValidPokemonFar(app)
     initialSpriteFar = app.loadImage(urlFar)
     scale = 120/initialSpriteClose.size[0]
     app.pokFarSprite = app.scaleImage(initialSpriteFar, scale)
     app.pokFarSprite.apply_transparency()
+
+def createValidPokemonClose(app):
+    found = False
+    while not found:
+        url = ("https://img.pokemondb.net/sprites/heartgold-soulsilver/" + 
+                "back-normal/" + app.pokClose.name.lower() + ".png")
+        try:
+            app.loadImage(url)
+        except:
+            pok = random.choice(list(pokemonList.keys()))
+            app.pokClose = Pokemon(40, pok, pokemonList[pok])
+        else:
+            found = True
+    return url
+
+def createValidPokemonFar(app):
+    found = False
+    while not found:
+        url = ("https://img.pokemondb.net/sprites/heartgold-soulsilver/" + 
+                "normal/" + app.pokFar.name.lower() + ".png")
+        try:
+            app.loadImage(url)
+        except:
+            pok = random.choice(list(pokemonList.keys()))
+            app.pokFar = Pokemon(40, pok, pokemonList[pok])
+        else:
+            found = True
+    return url
+            
 
 # Helper to create the background for the battle
 def createImagesBattle(app):
@@ -638,7 +676,9 @@ def battleKeyPressed(app, event):
     if event.key == "x":
         # If the game is over, switch back to overworld
         if "won!" in app.battleText:
-            if app.score == 1: app.mode = "endMode"
+            app.pokFar.hp = app.pokFar.getMaxHP()
+            app.player.ownedPokemon.append(app.pokFar)
+            if app.score == 5: app.mode = "endMode"
             else: app.mode = "overworldMode"
         # If someone won, make text won
         elif app.pokClose.hp <= 0: 
