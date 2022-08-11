@@ -279,7 +279,7 @@ def overworldMode_keyPressed(app, event):
             dMove = (0, -1)
         app.player.facing = 1
     elif event.key == "r":
-        appStarted()
+        appStarted(app)
 
     # Test to see if collision with rock or border
     app.player.row += dMove[0]
@@ -371,19 +371,20 @@ def drawScore(app, canvas):
 #  |______  /(____  /|__|   |__|  |____/ \___  > 
 #         \/      \/                         \/  
 ###############################################################################
-###############################################################################
+
 
 # Sets up variables for battle
 def startBattle(app):
     # Draw pokemon/background
     app.bgImage = createImagesBattle(app) 
     app.pokCloseX = app.width/4
-    app.pokCloseY = app.bgImage.size[1]-75 
+    app.pokCloseY = app.bgImage.size[1]
     # Pokemon/Battle values
     pok1 = random.choice(list(pokemonList.keys()))
     pok2 = random.choice(list(pokemonList.keys()))
     app.pokClose = Pokemon(40, pok1, pokemonList[pok1])
     app.pokFar = Pokemon(40, pok2, pokemonList[pok2])
+    initializeSprites(app)
     app.first, app.second, app.move0, app.move1 = -1, -1, -1, -1
     # Info box variables
     app.infoH, app.infoW = 100, app.width/2
@@ -402,7 +403,21 @@ def startBattle(app):
     # Chosing
     app.selection = (0, 0)
     # State
-    app.battleState = "Entering"
+    app.battleState = "Entering"    
+
+def initializeSprites(app):
+    urlClose = ("https://img.pokemondb.net/sprites/heartgold-soulsilver/" + 
+                "back-normal/" + app.pokClose.name.lower() + ".png")
+    initialSpriteClose = app.loadImage(urlClose)
+    scale = 180/initialSpriteClose.size[0]
+    app.pokCloseSprite = app.scaleImage(initialSpriteClose, scale)
+    app.pokCloseSprite.apply_transparency()
+    urlFar = ("https://img.pokemondb.net/sprites/heartgold-soulsilver/" + 
+                "normal/" + app.pokFar.name.lower() + ".png")
+    initialSpriteFar = app.loadImage(urlFar)
+    scale = 120/initialSpriteClose.size[0]
+    app.pokFarSprite = app.scaleImage(initialSpriteFar, scale)
+    app.pokFarSprite.apply_transparency()
 
 # Helper to create the background for the battle
 def createImagesBattle(app):
@@ -509,11 +524,11 @@ def drawInfoBox2(app, canvas):
 
 # Draws the pokemon on the background
 def drawPokemon(app, canvas):
-    canvas.create_rectangle(app.pokCloseX-90, app.pokCloseY-90, app.pokCloseX+90, 
-                            app.pokCloseY+90, fill="dark salmon", width=4, outline="black")
+    canvas.create_image(app.pokCloseX, app.pokCloseY, anchor="s",
+                            image=ImageTk.PhotoImage(app.pokCloseSprite))
 
-    canvas.create_rectangle(app.width*3/4+60, app.height/4+65, app.width*3/4-60, 
-                            app.height/4-55, fill="LemonChiffon4", width=4, outline="black")
+    canvas.create_image(app.width*3/4, app.height*3/10, 
+                        image=ImageTk.PhotoImage(app.pokFarSprite))
 
 # Draws the text box to display battle messages below background
 def drawTextBox(app, canvas):
@@ -580,7 +595,7 @@ def battleMode_keyPressed(app, event):
 
 # When in entering mode, pressing z goes to next text  
 def enteringKeyPressed(app, event):
-    if event.key == "z" and app.battleState == "Entering":
+    if event.key == "x" and app.battleState == "Entering":
         if "appeared!" in app.battleText:
             app.battleText = ""
             app.newMessage = f"Go! {app.pokClose.name}!"
@@ -620,7 +635,7 @@ def chooseKeyPressed(app, event):
 # Do things in battle state
 def battleKeyPressed(app, event):
     # When z is pressed
-    if event.key == "z":
+    if event.key == "x":
         # If the game is over, switch back to overworld
         if "won!" in app.battleText:
             if app.score == 1: app.mode = "endMode"
@@ -709,7 +724,7 @@ def doAttack(app, move, attacker, defender):
             defender.hp -= dmg
         # Make battle text
         app.battleText = ""
-        app.newMessage = (f"{attacker.name} used {moveName}!" + 
+        app.newMessage = (f"{attacker.name} used {moveName}! " + 
                           f"It did {dmg} damage!")
         # Make sure damage taker doesn't drop below 0 hp
         if defender.hp < 0:
