@@ -1,7 +1,16 @@
+Player Image:
 https://reliccastle.com/resources/404/
+Dataset for Pokemon:
 https://www.kaggle.com/datasets/n2cholas/competitive-pokemon-dataset
+Tile Images:
 https://reliccastle.com/resources/15/
-https://www.kaggle.com/datasets/rounakbanik/pokemon
-https://www.pokecommunity.com/showthread.php?t=267728
+Battle Field Sprites:
 https://www.spriters-resource.com/ds_dsi/pokemonplatinum/sheet/18502/
+Ascii art for organizations:
 https://textkool.com/en/ascii-art-generator?hl=default&vl=default&font=Red%20Phoenix&text=Classes
+Queries for Sprites:
+https://pokemondb.net/sprites
+make2dList, almostEqual, roundHalfUp, and general referencing for images:
+https://www.cs.cmu.edu/~112/
+Background of Start and end screens:
+https://wall.alphacoders.com/big.php?i=608323

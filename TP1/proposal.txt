@@ -36,3 +36,11 @@ Most difficult (⋆)
   \/ (/_ | _> | (_) | |   \_ (_) | | |_ | (_) | 
 Using github to back up code after major changes. Not using branches right now.
 ./TP1_Github
+
+TP2:
+Woking battle system, have a win condition, start and end splashscreens
+
+TP3:
+Working battle system with sprites. Now loss condition when all of your pokemon
+faint. Able to catch pokemon by beating them in battle and check your bag by
+pressing z. Added type based damage and clearer info in the infoboxes. 

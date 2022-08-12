@@ -1,7 +1,10 @@
 from cmu_112_graphics import *
 import random, copy, csv
 
-                                                                  
+
+# Three functions below make2dList, almostEqual, and roundHalfUp from 
+# https://www.cs.cmu.edu/~112/
+                                                           
 # Helper that makes a 2d list of row x col
 def make2dList(rows, cols, fill=0):
     return [ ([fill] * cols) for row in range(rows) ] 
@@ -26,7 +29,6 @@ def makeListFromString(s):
     for c in s:
         if isWord:
             currentWord += c
-
         if c == "," and isWord:
             result.append(currentWord[2:-2])
             currentWord = ""
@@ -50,6 +52,26 @@ def selectMoves(moveSet, i):
             i -= 1
     return addedMoves
 
+# Parses and creates the character sprite
+def createCharSprite(app):
+    isFile = False
+    while not isFile:
+        playerNum = random.randint(0, 178)
+        try:
+            app.loadImage("./TrainerSprites/trchar" + str(playerNum) + ".png")
+        except:
+            isFile = False
+        else:
+            isFile = True
+    # Image from https://reliccastle.com/resources/404/
+    img = app.loadImage("./TrainerSprites/trchar" + str(playerNum) + ".png")
+    result = make2dList(4, 4)
+    for row in range(4):
+        for col in range(4):
+            sprite = img.crop((64*col, 64*row, 64*(col+1), 64*(row+1)))
+            result[row][col] = sprite
+    return result
+
 ###############################################################################
 ###############################################################################
 # _________    _____________   ____    __________
@@ -61,6 +83,7 @@ def selectMoves(moveSet, i):
 ###############################################################################
 ###############################################################################
 
+# https://www.kaggle.com/datasets/n2cholas/competitive-pokemon-dataset
 pokemonList = dict()
 with open("pokemon-data.csv", "r") as file:
     csvreader = csv.reader(file, delimiter=";")
@@ -78,6 +101,7 @@ with open("pokemon-data.csv", "r") as file:
             "Move Set": makeListFromString(pokemon[11])
         }
 
+# list of moves and their properties
 moveList = dict()
 with open("move-data.csv", "r") as file:
     csvreader = csv.reader(file, delimiter=",")
@@ -103,24 +127,22 @@ with open("move-data.csv", "r") as file:
 
 # Player Object
 class Player(object):
-     def __init__(self, row, col, image):
+     def __init__(self, row, col, app):
         self.row = row
         self.col = col
         self.facing = 0 # 0: Up, 1: Left, 2: Right, 3: Down
         # Split sprite sheet into 2d array of all sprite images
-        self.sprites = make2dList(4, 4)
-        for row in range(4):
-            for col in range(4):
-                sprite = image.crop((64*col, 64*row, 64*(col+1), 64*(row+1)))
-                self.sprites[row][col] = sprite
+        self.sprites = createCharSprite(app)
         self.ownedPokemon = []
-        pok = "Serperior"
-        self.ownedPokemon.append(Pokemon(200, pok, pokemonList[pok]))
+        # Start with a Charizard
+        pok = "Charizard"
+        self.ownedPokemon.append(Pokemon(1, pok, pokemonList[pok]))
 
+# Pokeon object with stats
 class Pokemon(object):
     def __init__(self, level, name, stats):
         self.name = name
-        self.type = stats["Type"]
+        self.type = eval(stats["Type"])
         self.lvl = level
         # Get move set for this instance
         moveSet = stats["Move Set"]
@@ -151,6 +173,7 @@ class Pokemon(object):
         f"{self.defense}, spdf={self.SPdefense}, sp={self.speed}"
         f"\n")
 
+# Creates a random pokemon
 def createRandPokemon(app):
     pok = random.choice(list(pokemonList.keys()))
     return Pokemon(40, pok, pokemonList[pok])
@@ -170,11 +193,38 @@ def createRandPokemon(app):
 # Initialize all variables
 def appStarted(app):
     app.score = 0
+    # https://wall.alphacoders.com/big.php?i=608323
+    app.background = app.loadImage("./TileSprites/Background.png")
+    scale = app.height/app.background.size[1]
+    app.background = app.scaleImage(app.background, scale)
+    app.typeColors = {
+                "Normal": "AntiqueWhite1",
+                "Fire": "red",
+                "Water": "royal blue",
+                "Grass": "lime green",
+                "Electric": "gold2",
+                "Ice": "CadetBlue1",
+                "Fighting": "saddle brown",
+                "Poison": "dark orchid",
+                "Ground": "PeachPuff2",
+                "Flying": "MediumPurple1",
+                "Psychic": "violet red",
+                "Bug": "yellow green",
+                "Rock": "NavajoWhite4",
+                "Ghost": "SlateBlue4",
+                "Dark": "tan4",
+                "Dragon": "blue violet",
+                "Steel": "grey79",
+                "Fairy": "pink"
+            }    
+
     app.mode = "startMode"
     if app.mode == "overworldMode":
         startOverworld(app)
     elif app.mode == "battleMode":
         startBattle(app)
+    elif app.mode == "bagMode":
+        startBag(app)
 
 # If click in button, gen map and allow movement
 def startMode_mousePressed(app, event):
@@ -190,6 +240,8 @@ def inButton(app, x, y):
     return False
 
 def startMode_redrawAll(app, canvas):
+    canvas.create_image(app.width/2, app.height/2, 
+                        image=ImageTk.PhotoImage(app.background))
     # Draws name of game
     font = "ComicSansMs 100 bold"
     canvas.create_text(app.width/2, app.height/2, text="Pokemon 112", 
@@ -228,8 +280,7 @@ def startOverworld(app):
     app.cols = 60
     app.encounterChance = 10
     # Player Properties
-    playerImage = app.loadImage('./TrainerSprites/trchar170.png')
-    app.player = Player(app.rows//2, app.cols//2, playerImage)
+    app.player = Player(app.rows//2, app.cols//2, app)
     # Create Board fills
     app.grid = make2dList(app.rows, app.cols)
     createGridFills(app)
@@ -240,6 +291,7 @@ def startOverworld(app):
 def createImagesOverworld(app, s):
     images = []
     for c, r in [(3, 2), (0, 3)]:
+        # Tilesheet from https://reliccastle.com/resources/15/
         orig = app.loadImage('./TileSprites/TileSheet3.png').crop((s*c, s*r, s*(c+1), s*(r+1)))
         scale = (app.tileSize/orig.size[0])
         images.append(app.scaleImage(orig, scale))
@@ -286,6 +338,11 @@ def overworldMode_keyPressed(app, event):
         if app.player.facing == 1:
             dMove = (0, -1)
         app.player.facing = 1
+    elif event.key == "c":
+        app.player.sprites = createCharSprite(app)
+    elif event.key == "b":
+        app.mode = "bagMode"
+        startBag(app)
     elif event.key == "r":
         appStarted(app)
 
@@ -369,6 +426,98 @@ def drawScore(app, canvas):
     canvas.create_text(app.width-10, 0, anchor="ne", font=font, 
                        text="Score: " + str(app.score), fill="black")
 
+###############################################################################
+###############################################################################
+# __________            ____   
+# \______   \_____     / ___\  
+#  |    |  _/\__  \   / /_/  > 
+#  |    |   \ / __ \_ \___  /  
+#  |______  /(____  //_____/   
+#         \/      \/                                      
+###############################################################################
+###############################################################################
+
+# Start values for bag screen
+def startBag(app):
+    app.currPok = 0
+    app.sprite = None
+    createSprite(app)
+
+# Get and set sprite of current pokemon
+def createSprite(app):
+    url = ("https://img.pokemondb.net/sprites/heartgold-soulsilver/normal/" + 
+            app.player.ownedPokemon[app.currPok].name.lower() + ".png")
+    app.sprite = app.loadImage(url)
+    app.sprite = app.scaleImage(app.sprite, 4)
+    app.sprite.apply_transparency()
+
+# Drawing for bag screen
+def bagMode_redrawAll(app, canvas):
+    pokemon = app.player.ownedPokemon[app.currPok]
+    canvas.create_rectangle(0, 0, app.width, app.height, width=0, 
+                            fill=app.typeColors[pokemon.type[0]])
+    drawInfo(app, canvas)
+    drawInstruc(app, canvas)
+
+# Draw all info of current pokemon including sprite
+def drawInfo(app, canvas):
+    font = "ComicSansMs 30 bold"
+    pokemon = app.player.ownedPokemon[app.currPok]
+    canvas.create_image(app.width/2, 0, anchor="n",
+                        image=ImageTk.PhotoImage(app.sprite))
+    font = "ComicSansMs 30 bold"
+    top = app.width/2 + 10
+    m = 40
+    canvas.create_text(app.width/2, top, font=font, anchor="n", fill="black",
+                       text=pokemon.name + " lv" + str(pokemon.lvl))
+    font = "ComicSansMs 30"
+    canvas.create_text(app.width/2, app.height/2+m+5, font=font, 
+                       text=pokemon.type, anchor="n", fill="black")
+    moves = ""
+    for move in pokemon.moves:
+        moves += move + "|"
+    moves = moves[:-1]
+    canvas.create_text(app.width/2, app.height/2+2*m, font=font, 
+                       text=moves, anchor="n", fill="black")
+    canvas.create_text(app.width/2, app.height/2+3*m, font=font, 
+                       text="HP = "+str(pokemon.hp)+"/"+str(pokemon.getMaxHP()), 
+                       anchor="n", fill="black")
+    text= ("Attack = " + str(pokemon.attack) + "  Special Attack = " + 
+           str(pokemon.SPattack))
+    canvas.create_text(app.width/2, app.height/2+4*m, font=font, text=text,
+                       anchor="n", fill="black")
+    text= ("Defense = " + str(pokemon.defense) + "  Special Defense = " + 
+           str(pokemon.SPdefense))
+    canvas.create_text(app.width/2, app.height/2+5*m, font=font, text=text,
+                       anchor="n", fill="black")
+    canvas.create_text(app.width/2, app.height/2+6*m, font=font,
+                       text="Speed = " + str(pokemon.speed), anchor="n", 
+                       fill="black")
+
+# Draws instructions at the bottom
+def drawInstruc(app, canvas):
+    font = "ComicSansMs 30 bold"
+    instruc = "Press c to continue game"
+    canvas.create_text(app.width/2, app.height, font=font, 
+                       text=instruc, fill="black", anchor="s")
+    nav = "Use arrow keys to see pokemon"
+    canvas.create_text(app.width/2, app.height-40, font=font, 
+                       text=nav, fill="black", anchor="s")
+
+# Continue game with c and use arrow keys to move
+def bagMode_keyPressed(app, event):
+    if event.key == "Right" or event.key == "Up":
+        app.currPok += 1
+    elif event.key == "Left" or event.key == "Down":
+        app.currPok -= 1
+    elif event.key == "c":
+        app.mode = "overworldMode"
+    
+    if app.currPok >= len(app.player.ownedPokemon):
+        app.currPok = 0
+    elif app.currPok < 0:
+        app.currPok = len(app.player.ownedPokemon) - 1
+    createSprite(app)
 
 ###############################################################################
 ###############################################################################
@@ -413,8 +562,9 @@ def startBattle(app):
     # Chosing
     app.selection = (0, 0)
     # State
-    app.battleState = "Entering"    
+    app.battleState = "Entering"
 
+# Initializes the sprites and scales them for pokemon
 def initializeSprites(app):
     urlClose = createValidPokemonClose(app)
     initialSpriteClose = app.loadImage(urlClose)
@@ -428,6 +578,8 @@ def initializeSprites(app):
     app.pokFarSprite = app.scaleImage(initialSpriteFar, scale)
     app.pokFarSprite.apply_transparency()
 
+# Create a pokemon that has a sprite image by looping though random possibilites
+# until one works
 def createValidPokemonClose(app):
     found = False
     while not found:
@@ -442,9 +594,11 @@ def createValidPokemonClose(app):
             found = True
     return url
 
+# Same as above but with pokemon far instead of close
 def createValidPokemonFar(app):
     found = False
     while not found:
+        # Images https://pokemondb.net/sprites
         url = ("https://img.pokemondb.net/sprites/heartgold-soulsilver/" + 
                 "normal/" + app.pokFar.name.lower() + ".png")
         try:
@@ -459,12 +613,15 @@ def createValidPokemonFar(app):
 
 # Helper to create the background for the battle
 def createImagesBattle(app):
+    # https://www.spriters-resource.com/ds_dsi/pokemonplatinum/sheet/18502/
     bg = app.loadImage('./TileSprites/BattleTiles.png').crop((6, 440, 256, 582))
     scale = (app.width/bg.size[0])
     return app.scaleImage(bg, scale)
 
 # Draws all
 def battleMode_redrawAll(app, canvas):
+    canvas.create_image(app.width/2, app.height/2, 
+                        image=ImageTk.PhotoImage(app.background))
     drawBackground(app, canvas)
     drawInfoBox1(app, canvas)
     drawInfoBox2(app, canvas)
@@ -497,8 +654,15 @@ def drawInfoBox1(app, canvas):
     # HP right before HP Bar
     canvas.create_text(app.infoX+140, app.infoY+50, anchor="ne", font=font,
                        text="HP", fill="grey30")
+    font = "ComicSansMS 17"
+    marg = 0
+    for oneType in app.pokClose.type:
+        canvas.create_text(app.infoX+20+marg, app.infoY+app.infoH-3, anchor="sw", 
+                           font=font, text=oneType, fill=app.typeColors[oneType]) 
+        marg += 80
+    
 
-    # HP bar variab;es
+    # HP bar variables
     l = 150
     h = 10
     x0 = app.infoX+145
@@ -539,6 +703,12 @@ def drawInfoBox2(app, canvas):
                        text="Lv"+str(app.pokFar.lvl), fill="grey30") 
     canvas.create_text(x0+140, y0+50, anchor="ne", font=font,
                        text="HP", fill="grey30")
+    font = "ComicSansMS 17"
+    marg = 0
+    for oneType in app.pokFar.type:
+        canvas.create_text(x0+20+marg, y0+app.infoH-3, anchor="sw", 
+                           font=font, text=oneType, fill=app.typeColors[oneType]) 
+        marg += 80
 
     # Draws HP bar for far pokemon 
     l = 150
@@ -613,8 +783,17 @@ def drawMoves(app, canvas):
                                 text=moveName)
             # Add power in the bottom right
             font = "ComicSansMS 19"
-            canvas.create_text(x1, y1, fill="black", font=font, anchor="se",
+            canvas.create_text(x1-5, y1, fill="black", font=font, anchor="se",
                                 text="Power:"+str(moveList[moveName]["Power"]))
+            canvas.create_text(x1-5, y0, fill="grey23", font=font, anchor="ne",
+                                text=str(moveList[moveName]["Category"]))
+
+            # Move info
+            canvas.create_text(x1-5, y0, fill="black", font=font, 
+                               anchor="ne", text=moveList[moveName]["Category"])
+            canvas.create_text(x0+5, y1, font=font, anchor="sw", 
+                               fill=app.typeColors[moveList[moveName]["Type"]],
+                               text=moveList[moveName]["Type"])
             # Incrementation so draw all moves
             move += 1
 
@@ -677,8 +856,9 @@ def battleKeyPressed(app, event):
         # If the game is over, switch back to overworld
         if "won!" in app.battleText:
             app.pokFar.hp = app.pokFar.getMaxHP()
-            app.player.ownedPokemon.append(app.pokFar)
-            if app.score == 5: app.mode = "endMode"
+            if app.score == 2: app.mode = "endMode"
+            elif not checkIfAlive(app):
+                app.mode = "wipeoutMode"
             else: app.mode = "overworldMode"
         # If someone won, make text won
         elif app.pokClose.hp <= 0: 
@@ -688,7 +868,9 @@ def battleKeyPressed(app, event):
         elif app.pokFar.hp <= 0: 
             app.pokFar.hp = 0
             app.battleText = ""
-            app.newMessage = f"{app.pokClose.name} won!"
+            app.newMessage = (f"{app.pokClose.name} won! You caught "
+                              f"{app.pokFar.name}.")
+            app.player.ownedPokemon.append(app.pokFar)
             app.score += 1
         # Do second move
         elif app.move0 in app.battleText:
@@ -698,6 +880,14 @@ def battleKeyPressed(app, event):
             app.battleState = "Choosing"
             app.battleText = ""
             app.newMessage = f"What will {app.pokClose.name} do?"
+
+# Checks to see if there are any pokemon with a health above 0 in your party
+def checkIfAlive(app):
+    for pokemon in app.player.ownedPokemon:
+        if pokemon.hp != 0:
+            return True
+    print("hi")
+    return False
 
 # If z is not pressed, have normal text speed
 def battleMode_keyReleased(app, event):
@@ -722,11 +912,11 @@ def battleMode_timerFired(app):
         app.newMessage = app.newMessage[app.textSpeed:]
     # Change hp bar if the displayed and actual are not the same
     if app.displayHPClose > app.pokClose.hp and app.displayHPClose >= 0:
-        app.displayHPClose -= 3
+        app.displayHPClose -= 6
         if app.displayHPClose < app.pokClose.hp:
             app.displayHPClose = app.pokClose.hp
     elif app.displayHPFar > app.pokFar.hp and app.displayHPFar >= 0:
-        app.displayHPFar -= 3
+        app.displayHPFar -= 6
         if app.displayHPFar < app.pokFar.hp:
             app.displayHPFar = app.pokFar.hp
     app.tickCount += 1
@@ -752,13 +942,13 @@ def doAttack(app, move, attacker, defender):
     # Make sure move actually does damage
     if move["Power"] != "None":
         # Calc based on physical attributes
+        power = int(move["Power"])      
+        power *= getMultiplier(move["Type"], defender.type)
         if move["Category"] == "Physical":
-            power = int(move["Power"])
             dmg = int(power*attacker.attack*modATK/(1+modDEF*defender.defense))
             defender.hp -= dmg
         # Calc based on special attributes
         elif move["Category"] == "Special":
-            power = int(move["Power"])
             dmg = int(power*attacker.SPattack*modATK/
                       (1+modDEF*defender.SPdefense))
             defender.hp -= dmg
@@ -770,7 +960,149 @@ def doAttack(app, move, attacker, defender):
         if defender.hp < 0:
             defender.hp = 0
 
-
+# Calculates multiplier with disadvantages and advantages of type
+def getMultiplier(typeA, typesDef):
+    mult = 1
+    for typeB in typesDef:
+        if typeA == "Normal":
+            if typeB == "Rock": mult *= 0.5
+            elif typeB == "Ghost": mult *= 0         
+            elif typeB == "Steel": mult *= 0.5            
+        elif typeA == "Fire":
+            if typeB == "Fire": mult *= 0.5      
+            elif typeB == "Water": mult *= 0.5
+            elif typeB == "Grass": mult *= 2
+            elif typeB == "Ice": mult *= 2
+            elif typeB == "Bug": mult *= 2
+            elif typeB == "Rock": mult *= 0.5
+            elif typeB == "Dragon": mult *= 0.5
+            elif typeB == "Steel": mult *= 2
+        elif typeA == "Water":
+            if typeB == "Fire": mult *= 2
+            elif typeB == "Water": mult *= 0.5
+            elif typeB == "Grass": mult *= 0.5
+            elif typeB == "Ground": mult *= 2 
+            elif typeB == "Rock": mult *= 2
+            elif typeB == "Dragon": mult *= 0.5
+        elif typeA == "Grass":
+            if typeB == "Fire": mult *= 0.5  
+            elif typeB == "Water": mult *= 2
+            elif typeB == "Grass": mult *= 0.5
+            elif typeB == "Poison": mult *= 0.5 
+            elif typeB == "Ground": mult *= 2 
+            elif typeB == "Flying": mult *= 0.5
+            elif typeB == "Bug": mult *= 0.5
+            elif typeB == "Rock": mult *= 2
+            elif typeB == "Dragon": mult *= 0.5
+            elif typeB == "Steel": mult *= 0.5
+        elif typeA == "Electric":
+            if typeB == "Water": mult *= 2
+            elif typeB == "Grass": mult *= 0.5
+            elif typeB == "Electric": mult *= 0.5     
+            elif typeB == "Ground": mult *= 0
+            elif typeB == "Flying": mult *= 2
+            elif typeB == "Dragon": mult *= 0.5
+        elif typeA == "Ice":
+            if typeB == "Fire": mult *= 0.5  
+            elif typeB == "Water": mult *= 0.5
+            elif typeB == "Grass": mult *= 2
+            elif typeB == "Ice": mult *= 0.5
+            elif typeB == "Ground": mult *= 2 
+            elif typeB == "Flying": mult *= 2
+            elif typeB == "Dragon": mult *= 2
+            elif typeB == "Steel": mult *= 0.5
+        elif typeA == "Fighting":
+            if typeB == "Normal": mult *= 2
+            elif typeB == "Ice": mult *= 2
+            elif typeB == "Poison": mult *= 0.5 
+            elif typeB == "Flying": mult *= 0.5
+            elif typeB == "Psychic": mult *= 0.5        
+            elif typeB == "Bug": mult *= 0.5
+            elif typeB == "Rock": mult *= 2
+            elif typeB == "Ghost": mult *= 0 
+            elif typeB == "Dark": mult *= 2
+            elif typeB == "Steel": mult *= 2
+            elif typeB == "Fairy": mult *= 0.5
+        elif typeA == "Poision":
+            if typeB == "Grass": mult *= 2
+            elif typeB == "Poison": mult *= 0.5
+            elif typeB == "Ground": mult *= 0.5
+            elif typeB == "Rock": mult *= 0.5
+            elif typeB == "Ghost": mult *= 0.5
+            elif typeB == "Steel": mult *= 0
+            elif typeB == "Fairy": mult *= 2
+        elif typeA == "Ground":
+            if typeB == "Fire": mult *= 2  
+            elif typeB == "Grass": mult *= 0.5
+            elif typeB == "Electric": mult *= 2     
+            elif typeB == "Poison": mult *= 2 
+            elif typeB == "Flying": mult *= 0
+            elif typeB == "Bug": mult *= 0.5
+            elif typeB == "Rock": mult *= 2
+            elif typeB == "Steel": mult *= 2
+        elif typeA == "Flying":
+            if typeB == "Grass": mult *= 2
+            elif typeB == "Electric": mult *= 0.5     
+            elif typeB == "Fighting": mult *= 2 
+            elif typeB == "Bug": mult *= 2
+            elif typeB == "Rock": mult *= 0.5
+            elif typeB == "Steel": mult *= 0.5
+        elif typeA == "Psychic":
+            if typeB == "Fighting": mult *= 2
+            elif typeB == "Poison": mult *= 2
+            elif typeB == "Psychic": mult *= 0.5       
+            elif typeB == "Dark": mult *= 0
+            elif typeB == "Steel": mult *= 0.5
+        elif typeA == "Bug":
+            if typeB == "Fire": mult *= 0.5  
+            elif typeB == "Grass": mult *= 2
+            elif typeB == "Fighting": mult *= 0.5 
+            elif typeB == "Poison": mult *= 0.5
+            elif typeB == "Flying": mult *= 0.5
+            elif typeB == "Psychic": mult *= 2         
+            elif typeB == "Ghost": mult *= 0.5
+            elif typeB == "Dark": mult *= 2
+            elif typeB == "Steel": mult *= 0.5
+            elif typeB == "Fairy": mult *= 0.5
+        elif typeA == "Rock":
+            if typeB == "Fire": mult *= 2  
+            elif typeB == "Ice": mult *= 2
+            elif typeB == "Fighting": mult *= 0.5
+            elif typeB == "Ground": mult *= 0.5
+            elif typeB == "Flying": mult *= 2
+            elif typeB == "Bug": mult *= 2
+            elif typeB == "Steel": mult *= 0.5
+        elif typeA == "Ghost":
+            if typeB == "Normal": mult *= 0
+            elif typeB == "Psychic": mult *= 2         
+            elif typeB == "Ghost": mult *= 2 
+            elif typeB == "Dark": mult *= 0.5
+        elif typeA == "Dragon":
+            if typeB == "Dragon": mult *= 2
+            elif typeB == "Steel": mult *= 0.5
+            elif typeB == "Fairy": mult *= 0
+        elif typeA == "Dark":
+            if typeB == "Fighting": mult *= 0.5 
+            elif typeB == "Psychic": mult *= 2
+            elif typeB == "Ghost": mult *= 2 
+            elif typeB == "Dark": mult *= 0.5
+            elif typeB == "Fairy": mult *= 0.5
+        elif typeA == "Steel":
+            if typeB == "Fire": mult *= 0.5
+            elif typeB == "Water": mult *= 0.5
+            elif typeB == "Electric": mult *= 0.5     
+            elif typeB == "Ice": mult *= 2
+            elif typeB == "Rock": mult *= 2
+            elif typeB == "Steel": mult *= 0.5
+            elif typeB == "Fairy": mult *= 2
+        elif typeA == "Fairy":
+            if typeB == "Fire": mult *= 0.5  
+            elif typeB == "Fighting": mult *= 2 
+            elif typeB == "Poison": mult *= 0.5
+            elif typeB == "Dragon": mult *= 2
+            elif typeB == "Dark": mult *= 2
+            elif typeB == "Steel": mult *= 0.5
+    return mult
 
 ###############################################################################
 ###############################################################################
@@ -785,6 +1117,8 @@ def doAttack(app, move, attacker, defender):
 
 # Draw text for end game
 def endMode_redrawAll(app, canvas):
+    canvas.create_image(app.width/2, app.height/2, 
+                        image=ImageTk.PhotoImage(app.background))
     font = "ComicSansMs 150 bold"
     canvas.create_text(app.width/2, app.height/2, font=font, text="You Won!",
                         fill="black")
@@ -799,6 +1133,34 @@ def endMode_keyPressed(app, event):
         appStarted(app)
     if event.key == "c":
         app.mode = "overworldMode"
+
+###############################################################################
+###############################################################################
+#  __      __ .__                                 __    
+# /  \    /  \|__|______    ____   ____   __ __ _/  |_  
+# \   \/\/   /|  |\____ \ _/ __ \ /  _ \ |  |  \\   __\ 
+#  \        / |  ||  |_> >\  ___/(  <_> )|  |  / |  |   
+#   \__/\  /  |__||   __/  \___  >\____/ |____/  |__|   
+#        \/       |__|         \/                       
+###############################################################################
+###############################################################################
+
+# Draw text for end game when wiped out
+def wipeoutMode_redrawAll(app, canvas):
+    canvas.create_image(app.width/2, app.height/2, 
+                        image=ImageTk.PhotoImage(app.background))
+    font = "ComicSansMs 85 bold"
+    canvas.create_text(app.width/2, app.height/2, font=font, 
+                       text="You Wiped Out!", fill="black")
+    instruc = "Press r to restart."
+    canvas.create_text(app.width/2, app.height*3/4, font="ComicSansMs 40", 
+                       text=instruc, fill="black")
+
+# Restart if r is pressed
+def wipeoutMode_keyPressed(app, event):
+    if event.key == "r":
+        app.mode = "startMode"
+        appStarted(app)
 
 # Main draw element
 def main():
